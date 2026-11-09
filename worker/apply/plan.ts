@@ -19,6 +19,7 @@ import {
   isAcknowledgement,
   isOptionalConsent,
   knownAnswer,
+  monthSpan,
   placeOption,
   prepareFields,
   questionKey,
@@ -83,7 +84,7 @@ export function formerEmployerAnswer(control: FormControl, profile: ResumeProfil
   const label = control.label.trim();
   if (!name || control.kind === "checkbox" || control.kind === "file") return null;
   if (!WORKED_THERE.test(label) || NOT_ABOUT_APPLICANT.test(label)) return null;
-  if (!/^(have|are|were|did)\b/i.test(label) && !/\b(current|former|previous)\b/i.test(label)) return null;
+  if (!/^(have|are|were|did|do)\b/i.test(label) && !/\b(current|former|previous)\b/i.test(label)) return null;
   if (!` ${norm(label)} `.includes(` ${name} `) && !/\b(for|with|at|by) (us|our company|this company)\b|\bhere\b/i.test(label)) return null;
   // Without a resume there's no employer list to trust.
   if (profile.experience.length === 0 && profile.education.length === 0) return null;
@@ -110,6 +111,45 @@ export function residenceAnswer(control: FormControl, place: { location: string;
   if (!livesInUs || !NAMES_US.test(label.slice(asked[0].length))) return null;
   if (control.options.length === 0) return CHOICE_KINDS.has(control.kind) ? null : "Yes";
   return control.options.find((option) => /^\s*yes\b/i.test(option)) ?? null;
+}
+
+const STUDYING = /^(are|do)\b.*\b(currently|presently)\b.{0,40}\b(pursuing|enrolled|attending|studying|in (full[- ]?time )?(education|school|college|university))\b|^are you (a )?(current|currently a) (\w+ )?student\b/i;
+const NOT_YES_NO = /\b(which|what|where|when)\b|\bgraduat/i;
+const ONGOING = /present|current|ongoing/i;
+
+/** A resume's end date against this month: null when it doesn't say. */
+function stillRunning(endDate: string, thisMonth: number): boolean | null {
+  if (ONGOING.test(endDate)) return true;
+  const span = monthSpan(endDate);
+  return span ? span[1] >= thisMonth : null;
+}
+
+/** The degree a question names, as the resume's degree types. */
+function degreeAsked(label: string): RegExp | null {
+  if (/undergrad|bachelor/i.test(label)) return /bachelor|associate/;
+  if (/master|\bmba\b/i.test(label)) return /master|mba/;
+  if (/\bph\.?d\b|doctora/i.test(label)) return /phd|doctor/;
+  return null;
+}
+
+/** "Are you currently pursuing your undergraduate degree?" The resume's dates
+ * say. Null when they don't, and for full-time study beside a current job,
+ * which could be either. */
+export function currentlyStudyingAnswer(control: FormControl, profile: ResumeProfile, now: Date): string | null {
+  const label = control.label.trim();
+  if (control.kind === "checkbox" || control.kind === "file" || !STUDYING.test(label) || NOT_YES_NO.test(label)) return null;
+  if (profile.education.length === 0) return null;
+  const degree = degreeAsked(label);
+  if (degree && profile.education.some((entry) => entry.credentials.length === 0 || entry.credentials.some((credential) => !credential.degreeType))) return null;
+  const thisMonth = now.getUTCFullYear() * 12 + now.getUTCMonth();
+  const states = profile.education
+    .filter((entry) => !degree || entry.credentials.some((credential) => degree.test(credential.degreeType ?? "")))
+    .map((entry) => stillRunning(entry.endDate, thisMonth));
+  const studying = states.includes(true) ? true : states.includes(null) ? null : false;
+  if (studying === null) return null;
+  if (studying && /full[- ]?time/i.test(label) && profile.experience.some((entry) => stillRunning(entry.endDate, thisMonth) === true)) return null;
+  if (control.options.length === 0) return CHOICE_KINDS.has(control.kind) ? null : studying ? "Yes" : "No";
+  return control.options.find((option) => (studying ? /^\s*yes\b/i : /^\s*no\b/i).test(option)) ?? null;
 }
 
 /** How a page control maps onto the answer rules written for ATS forms. */
@@ -329,6 +369,12 @@ export async function planApplication(
     const residence = residenceAnswer(control, place);
     if (residence) {
       steps.push({ ref: control.ref, kind: control.kind, value: asValue(control, residence) });
+      continue;
+    }
+
+    const studying = currentlyStudyingAnswer(control, profile.data, now);
+    if (studying) {
+      steps.push({ ref: control.ref, kind: control.kind, value: asValue(control, studying) });
       continue;
     }
 

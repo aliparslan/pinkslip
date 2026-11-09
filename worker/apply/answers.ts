@@ -73,6 +73,10 @@ const LABEL_KEYS: Array<[RegExp, string]> = [
   [/^(?!.*sponsor).*(authori[sz]ed to work|eligible to work|work authori[sz]ation|right to work)/i, "work_authorization"],
   [/\b(open|willing|able|plan(ning)?)\b.{0,20}relocat/i, "relocation"],
   [/(at least|over) 18|18 years|18\+|18 or older/i, "over_18"],
+  // Worded a dozen ways, and one saved answer serves them all.
+  [/\baddress line 1\b|^(street|home|mailing|residential) address\b/i, "address"],
+  [/\b(postal|post|zip) ?code\b/i, "postal_code"],
+  [/\bnotice period\b/i, "notice_period"],
   [/earliest.*start|start date|available to start|when can you start|start-date/i, "start_date"],
   [/how did you (first )?(hear|find|learn)|where did you (first )?(hear|find|learn)|hear about|learn(ed)? about (this|the|us)|brought you to/i, "how_heard"],
   [/pronoun/i, "pronouns"],
@@ -124,7 +128,7 @@ export function storageKey(field: ApplicationField, stored: ApplicationAnswerVal
  * long dropdown of schools or countries can be matched against the resume. */
 export function resumeKeyForLabel(label: string): string | null {
   const cleaned = label.replace(/^\(optional\)\s*/i, "").trim();
-  if (/^country\b|country of residence|which country|country\/region/i.test(cleaned)) return "country";
+  if (/^country\b|country of residence|which country|country\/region|\bcountry\b.*\b(reside|live|located|based)\b/i.test(cleaned)) return "country";
   if (/^state\b|\b(state|province)\b.*\b(reside|live|located|based)\b|state of residence/i.test(cleaned)) return "state";
   const match = LABEL_KEYS.find(([pattern]) => pattern.test(cleaned))?.[1];
   return match && ABOUT_KEYS.has(match) ? match : null;
@@ -434,7 +438,7 @@ const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "
 const SEASONS: Record<string, [number, number]> = { winter: [0, 1], spring: [2, 5], summer: [6, 7], fall: [8, 11], autumn: [8, 11] };
 
 /** "May 2025", "Spring 2027" or "2026" as a span of months, inclusive. */
-function monthSpan(text: string): [number, number] | null {
+export function monthSpan(text: string): [number, number] | null {
   const year = Number(text.match(/\b(19|20)\d{2}\b/)?.[0]);
   if (!year) return null;
   const word = text.toLowerCase().match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(19|20)\d{2}\b|\b(winter|spring|summer|fall|autumn)\s+(19|20)\d{2}\b/);

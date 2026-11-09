@@ -2,6 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { createEmptyResumeProfile, type ResumeProfile } from "../shared/resume-profile";
 import type { FormControl } from "../shared/application-form";
 import { applicantFacts, formerEmployerAnswer, fuzzyOption, learnAnswers, planApplication, residenceAnswer } from "../worker/apply/plan";
+import { answerKey, resumeKeyForLabel } from "../worker/apply/answers";
+import { currentlyStudyingAnswer } from "../worker/apply/plan";
 import { answerWithJev, acceptedJevAnswer } from "../worker/apply/jev-answers";
 import type { JevRunner } from "../worker/jev";
 import type { Env } from "../worker/types";
@@ -342,5 +344,47 @@ describe("Jev answers", () => {
     const facts = applicantFacts({ profile: student, name: "", workAuthorization: "sponsorship", answered: [{ label: "Willing to relocate?", value: "yes" }], job: null });
     expect(facts).toContain("Work authorization: Needs visa sponsorship to work in the US.");
     expect(facts).toContain("- Willing to relocate?: yes");
+  });
+});
+
+describe("facts Pinkslip needn't ask again", () => {
+  const yesNo = (label: string) => control("q", "radio", label, { options: ["Yes", "No"] });
+  const now = new Date("2026-11-08T12:00:00Z");
+  const graduated: ResumeProfile = { ...student, education: [{ ...student.education[0]!, endDate: "May 2024" }] };
+
+  it("says from the resume's dates whether someone is still studying", () => {
+    expect(currentlyStudyingAnswer(yesNo("Are you currently pursuing your undergraduate degree?"), student, now)).toBe("Yes");
+    expect(currentlyStudyingAnswer(yesNo("Are you currently enrolled in a Master's degree program?"), student, now)).toBe("No");
+    expect(currentlyStudyingAnswer(yesNo("Are you currently in full-time education?"), graduated, now)).toBe("No");
+    expect(currentlyStudyingAnswer(yesNo("Are you a current student?"), student, now)).toBe("Yes");
+  });
+
+  it("leaves it to the person when the resume can't say", () => {
+    const undated: ResumeProfile = { ...student, education: [{ ...student.education[0]!, endDate: "" }] };
+    const working: ResumeProfile = { ...student, experience: [{ ...student.experience[0]!, endDate: "Present" }] };
+    expect(currentlyStudyingAnswer(yesNo("Are you currently enrolled?"), undated, now)).toBeNull();
+    expect(currentlyStudyingAnswer(yesNo("Are you currently enrolled?"), { ...student, education: [] }, now)).toBeNull();
+    expect(currentlyStudyingAnswer(yesNo("Are you currently in full-time education?"), working, now)).toBeNull();
+    expect(currentlyStudyingAnswer(yesNo("If you are currently enrolled, which school?"), student, now)).toBeNull();
+    expect(currentlyStudyingAnswer(yesNo("Are you currently enrolled and when do you graduate?"), student, now)).toBeNull();
+  });
+
+  it("reads \"do you work for\" as the former-employer question", () => {
+    expect(formerEmployerAnswer(yesNo("Do you currently work for Crusoe, or have you worked for Crusoe in the past?"), student, "Crusoe")).toBe("No");
+    expect(formerEmployerAnswer(yesNo("Do you currently work for Ramp, or have you worked for Ramp in the past?"), student, "Ramp")).toBeNull();
+    expect(formerEmployerAnswer(yesNo("Do you currently work for or have you ever worked for a U.S. government entity?"), student, "Crusoe")).toBeNull();
+  });
+
+  it("keeps one saved answer for the many wordings of a basic fact", () => {
+    for (const label of ["Postal/Zip Code", "What's your postal code?", "What is the zip code of your primary residence?"]) {
+      expect(answerKey("q", label, "text")).toBe("postal_code");
+    }
+    expect(answerKey("q", "Address Line 1", "text")).toBe("address");
+    expect(answerKey("q", "What is your current notice period?", "select")).toBe("notice_period");
+  });
+
+  it("knows which country questions ask where someone lives", () => {
+    expect(resumeKeyForLabel("Please select the country where you currently reside.")).toBe("country");
+    expect(resumeKeyForLabel("Please select the country or countries you anticipate working in")).toBeNull();
   });
 });
