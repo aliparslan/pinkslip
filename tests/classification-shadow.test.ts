@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, setSystemTime } from "bun:test";
 import { Database } from "bun:sqlite";
-import { catalogDecisionReason, listingFingerprint, MAX_AUDIT_LISTINGS_PER_CHECKPOINT, recordSourceDecisions, reserveShadowCall, runClassificationShadow, shadowDailyLimit } from "@worker/classification-shadow";
+import { applyLocationRulings, catalogDecisionReason, listingFingerprint, locationRulings, MAX_AUDIT_LISTINGS_PER_CHECKPOINT, recordSourceDecisions, reserveShadowCall, runClassificationShadow, shadowDailyLimit } from "@worker/classification-shadow";
 import { classifyWithJev, JEV_MODEL, JEV_QUESTIONS, JEV_WORKERS_AI_MODEL, type JevRunner } from "@worker/jev";
 import type { JobListing } from "@worker/adapters/types";
 import type { Env } from "@worker/types";
@@ -14,6 +14,7 @@ async function fixture() {
   databases.push(sqlite);
   sqlite.exec("PRAGMA foreign_keys=ON; CREATE TABLE companies(id TEXT PRIMARY KEY); INSERT INTO companies VALUES ('company'); CREATE TABLE preferences(key TEXT PRIMARY KEY, value TEXT);");
   sqlite.exec(await Bun.file(new URL("../migrations/0078_classification_shadow.sql", import.meta.url)).text());
+  sqlite.exec(await Bun.file(new URL("../migrations/0122_location_rulings_skip_queue_cap.sql", import.meta.url)).text());
   let batches = 0;
   const db = {
     prepare(sql: string) {
@@ -116,6 +117,74 @@ describe("classification shadow", () => {
     const row = sqlite.query("SELECT input_json, truncated FROM job_classification_shadow").get() as { input_json: string; truncated: number };
     expect(row.truncated).toBe(1);
     expect(JSON.parse(row.input_json).description.length).toBe(12_000);
+  });
+
+  describe("location rulings", () => {
+    const hybrid = { ...job, externalId: "hybrid", location: "Hybrid" };
+    const complete = (sqlite: Database, key: string, id: string, choice: string, yes: number, at: string, reason = "location_ruling") =>
+      sqlite.query(`INSERT INTO job_classification_shadow(cache_key, company_id, external_id, reason, queued_at, status, completed_at, answers_json)
+        VALUES (?, 'company', ?, ?, 'now', 'complete', ?, ?)`).run(key, id, reason, at, JSON.stringify({ us_eligibility: { choice, probabilities: { yes } } }));
+
+    it("asks only when an unreadable location is all that stands in the job's way", async () => {
+      const { db, sqlite } = await fixture();
+      await recordSourceDecisions(db, "company", [
+        hybrid,
+        { ...hybrid, externalId: "recruiter", title: "Recruiter" },
+        { ...hybrid, externalId: "stale", postedAt: "2020-01-01T00:00:00.000Z" },
+        { ...job, externalId: "london", location: "London, UK" },
+      ], [], true);
+      const reasons = Object.fromEntries((sqlite.query("SELECT external_id, reason FROM job_classification_shadow").all() as { external_id: string; reason: string }[])
+        .map((row) => [row.external_id, row.reason]));
+      expect(reasons.hybrid).toBe("location_ruling");
+      expect(reasons.london).toBe("rejected_location");
+      expect(reasons.stale).toBe("rejected_location");
+      expect(reasons.recruiter).not.toBe("location_ruling");
+    });
+
+    it("isn't held back by a full sample queue, and goes first", async () => {
+      const { db, sqlite } = await fixture();
+      const insert = sqlite.query("INSERT INTO job_classification_shadow(cache_key, company_id, external_id, reason, queued_at, input_json) VALUES (?, 'company', ?, 'test', '2020-01-01', '{}')");
+      for (let i = 0; i < 500; i++) insert.run(String(i), String(i));
+      await recordSourceDecisions(db, "company", [hybrid], [], true);
+      expect(sqlite.query("SELECT COUNT(*) AS count FROM job_classification_shadow WHERE reason='location_ruling'").get()).toEqual({ count: 1 });
+
+      const titles: unknown[] = [];
+      const AI = fakeAi(async (_model, inputs) => { titles.push(JSON.stringify(inputs.state)); return providerResponse(); });
+      await runClassificationShadow({ DB: db, AI, JOB_CLASSIFICATION_SHADOW: "true" } as Env, noAlerts);
+      expect(String(titles[0])).toContain("Hybrid");
+      expect(sqlite.query("SELECT status FROM job_classification_shadow WHERE external_id='hybrid'").get()).toEqual({ status: "complete" });
+    });
+
+    it("moves an already-queued sample up the line", async () => {
+      const { db, sqlite } = await fixture();
+      await recordSourceDecisions(db, "company", [hybrid], [], true);
+      sqlite.run("UPDATE job_classification_shadow SET reason='rejected_location'");
+      await recordSourceDecisions(db, "company", [hybrid], [], true);
+      expect(sqlite.query("SELECT reason FROM job_classification_shadow").all()).toEqual([{ reason: "location_ruling" }]);
+    });
+
+    it("takes the latest answer, and only a confident yes", async () => {
+      const { db, sqlite } = await fixture();
+      complete(sqlite, "a", "yes", "yes", 0.95, "2026-11-01");
+      complete(sqlite, "b", "sampled", "yes", 0.9, "2026-11-01", "rejected_location");
+      complete(sqlite, "c", "unsure", "yes", 0.6, "2026-11-01");
+      complete(sqlite, "d", "no", "no", 0, "2026-11-01");
+      complete(sqlite, "e", "changed", "yes", 0.95, "2026-11-01");
+      complete(sqlite, "f", "changed", "no", 0, "2026-11-02");
+      complete(sqlite, "g", "other-gate", "yes", 0.99, "2026-11-01", "rejected_management");
+      expect([...await locationRulings(db, "company")].sort()).toEqual(["sampled", "yes"]);
+    });
+
+    it("rewrites only a location no filter can read", () => {
+      const jobs = [
+        { ...job, externalId: "a", location: "Hybrid" },
+        { ...job, externalId: "b", location: "London, UK" },
+        { ...job, externalId: "c", location: "Remote, AMER" },
+        { ...job, externalId: "d", location: "In-Office" },
+      ];
+      expect(applyLocationRulings(jobs, new Set(["a", "b", "c"])).map((row) => row.location))
+        .toEqual(["Hybrid, United States", "London, UK", "Remote, United States", "In-Office"]);
+    });
   });
 
   it("enforces the queue cap in the database", async () => {

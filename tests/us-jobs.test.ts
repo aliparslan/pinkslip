@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { isUsJobLocation } from "@worker/us-jobs";
+import { isUnreadableLocation, isUsJobLocation, ruledUsLocation } from "@worker/us-jobs";
 
 describe("isUsJobLocation", () => {
   it("accepts US cities, states, and generic remote roles", () => {
@@ -83,6 +83,25 @@ describe("isUsJobLocation", () => {
     expect(isUsJobLocation("Hub - Porto")).toBe(false);
     expect(isUsJobLocation("Remote - CA")).toBe(false);
     expect(isUsJobLocation("Hybrid")).toBe(false);
+  });
+
+  it("tells a location no filter can read from one that names a place", () => {
+    for (const location of ["Hybrid", "In-Office", "On-site", "Americas", "North America", "Remote, AMER", "Remote - Americas ", "Remote, Global", "Global", "Anywhere"]) {
+      expect(isUnreadableLocation(location)).toBe(true);
+    }
+    for (const location of ["Remote", "Remote - US", "London, UK", "Remote - EU - LATAM - NA", "North America, South America", "Hybrid - Toronto", ""]) {
+      expect(isUnreadableLocation(location)).toBe(false);
+    }
+  });
+
+  it("writes a ruled location so the filters and the feed can read it", () => {
+    expect(ruledUsLocation("Hybrid")).toBe("Hybrid, United States");
+    expect(ruledUsLocation("In-Office")).toBe("On-site, United States");
+    expect(ruledUsLocation("Remote, AMER")).toBe("Remote, United States");
+    expect(ruledUsLocation("Americas")).toBe("United States");
+    for (const location of ["Hybrid", "In-Office", "Remote, AMER", "Americas"]) {
+      expect(isUsJobLocation(ruledUsLocation(location))).toBe(true);
+    }
   });
 
   it("accepts a US city with an office or work-mode note", () => {

@@ -863,3 +863,66 @@ describe("pollCompany with an empty board", () => {
     expect(job()).toEqual({ missed_polls: 0, closed_at: null });
   });
 });
+
+describe("pollCompany with a location Jev has ruled on", () => {
+  let fetchSpy: ReturnType<typeof spyOn> | null = null;
+  afterEach(() => fetchSpy?.mockRestore());
+
+  const posting = (location: string) => [{
+    id: 202, title: "Software Engineer", absolute_url: "https://example.com/202",
+    location: { name: location }, updated_at: new Date().toISOString(), departments: [],
+    content: "<p>Build backend services in TypeScript. 1+ years of experience. A bachelor's degree in computer science.</p>".repeat(3),
+  }];
+
+  async function setup(answer?: { choice: string; yes: number }) {
+    const { sqlite, db } = sqliteD1();
+    const dir = new URL("../migrations/", import.meta.url).pathname;
+    for (const file of readdirSync(dir).filter((name) => name.endsWith(".sql")).sort()) {
+      sqlite.run(await Bun.file(`${dir}${file}`).text());
+    }
+    sqlite.query(`INSERT INTO companies (id, name, ats_type, source_type, ats_slug) VALUES ('ruled', 'Ruled Co', 'greenhouse', 'greenhouse', 'ruled-test')`).run();
+    if (answer) {
+      sqlite.query(`INSERT INTO job_classification_shadow(cache_key, company_id, external_id, reason, queued_at, status, completed_at, answers_json)
+        VALUES ('k', 'ruled', '202', 'location_ruling', 'now', 'complete', 'now', ?)`)
+        .run(JSON.stringify({ us_eligibility: { choice: answer.choice, probabilities: { yes: answer.yes } } }));
+    }
+    const company = sqlite.query("SELECT * FROM companies WHERE id = 'ruled'").get() as CompanyRow;
+    const stored = () => sqlite.query("SELECT location, closed_at FROM jobs WHERE company_id = 'ruled'").all();
+    return { db, company, stored };
+  }
+
+  const stub = (location: string) => {
+    fetchSpy?.mockRestore();
+    fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async () =>
+      new Response(JSON.stringify({ jobs: posting(location) }), { headers: { "content-type": "application/json" } })
+    ) as unknown as typeof fetch);
+  };
+
+  it("leaves it out until Jev says yes", async () => {
+    const { db, company, stored } = await setup();
+    stub("Hybrid");
+    await pollCompany(company, db);
+    expect(stored()).toEqual([]);
+  });
+
+  it("leaves it out on a no or an unsure yes", async () => {
+    for (const answer of [{ choice: "no", yes: 0 }, { choice: "yes", yes: 0.5 }]) {
+      const { db, company, stored } = await setup(answer);
+      stub("Hybrid");
+      await pollCompany(company, db);
+      expect(stored()).toEqual([]);
+    }
+  });
+
+  it("admits it on a confident yes, and still honours a place the source names later", async () => {
+    const { db, company, stored } = await setup({ choice: "yes", yes: 0.93 });
+    stub("Hybrid");
+    await pollCompany(company, db);
+    expect(stored()).toEqual([{ location: "Hybrid, United States", closed_at: null }]);
+
+    stub("London, UK");
+    await pollCompany(company, db);
+    const [row] = stored() as { location: string; closed_at: string | null }[];
+    expect(row!.location).not.toBe("London, UK");
+  });
+});

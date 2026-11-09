@@ -2,7 +2,7 @@ import type { JobListing } from "./adapters/types";
 import type { Env } from "./types";
 import { classifyTitleScope } from "./job-scope";
 import { classifyJob, catalogCareerStage, hasPotentiallyEligibleSeniority, JOB_CLASSIFIER_VERSION, requiresSecurityClearance } from "./job-features";
-import { isUsJobLocation } from "./us-jobs";
+import { isUnreadableLocation, isUsJobLocation, ruledUsLocation } from "./us-jobs";
 import { isFreshPostedAt, namesUpcomingCohort } from "../shared/job-policy";
 import { hasTable } from "./db-schema";
 import { classifyWithJev, JEV_MODEL, JEV_QUESTION_VERSION, type JevRunner } from "./jev";
@@ -13,6 +13,9 @@ export const CLASSIFICATION_GATE_VERSION = `${JOB_CLASSIFIER_VERSION}/scope-v14`
 const MAX_DESCRIPTION_CHARS = 12_000;
 const MAX_SHADOW_CALLS_PER_DAY = 100;
 export const MAX_AUDIT_LISTINGS_PER_CHECKPOINT = 25;
+/** A queued question whose answer can admit a job, so it goes ahead of the samples. */
+export const LOCATION_RULING = "location_ruling";
+const MIN_RULING_CONFIDENCE = 0.8;
 
 /** First catalog rejection, not a final personalized match decision. */
 export function catalogDecisionReason(job: JobListing, customTitles: readonly string[] = []): string {
@@ -97,9 +100,19 @@ export async function recordSourceDecisions(
             location=excluded.location, job_url=excluded.job_url, evaluated_at=excluded.evaluated_at`)
           .bind(companyId, job.externalId, hash, gateVersion, reason, job.title, job.location, job.url, now));
       }
-      if (!shadow || !job.description?.trim() || samples >= 8 || (sampled.get(reason) ?? 0) >= 2) continue;
+      // Asked only when the location is all that stands in the job's way.
+      const ruling = shadow && reason === "rejected_location" && isUnreadableLocation(job.location)
+        && catalogDecisionReason({ ...job, location: "United States" }, customTitles) === "catalog_candidate";
+      if (!shadow || !job.description?.trim() || (!ruling && (samples >= 8 || (sampled.get(reason) ?? 0) >= 2))) continue;
       const cacheKey = await digest(`${companyId}/${job.externalId}/${hash}/${gateVersion}/${JEV_MODEL}/${JEV_QUESTION_VERSION}`);
-      if (knownShadow.has(cacheKey)) continue;
+      if (knownShadow.has(cacheKey)) {
+        // Sampled earlier and still waiting: move it up the line.
+        if (ruling) {
+          statements.push(db.prepare("UPDATE job_classification_shadow SET reason=? WHERE cache_key=? AND status='pending' AND reason!=?")
+            .bind(LOCATION_RULING, cacheKey, LOCATION_RULING));
+        }
+        continue;
+      }
       // Stratify across rejection reasons; deliberately include non-US and
       // out-of-scope rows. This is a diagnostic sample, not an accuracy estimate.
       const input = {
@@ -108,7 +121,8 @@ export async function recordSourceDecisions(
       };
       statements.push(db.prepare(`INSERT OR IGNORE INTO job_classification_shadow
         (cache_key, company_id, external_id, reason, input_json, baseline_json, truncated, queued_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-        .bind(cacheKey, companyId, job.externalId, reason, JSON.stringify(input), JSON.stringify(classifyJob(job)), job.description.length > MAX_DESCRIPTION_CHARS ? 1 : 0, now));
+        .bind(cacheKey, companyId, job.externalId, ruling ? LOCATION_RULING : reason, JSON.stringify(input), JSON.stringify(classifyJob(job)), job.description.length > MAX_DESCRIPTION_CHARS ? 1 : 0, now));
+      if (ruling) continue;
       sampled.set(reason, (sampled.get(reason) ?? 0) + 1);
       samples++;
     }
@@ -122,6 +136,35 @@ export async function sourceDecisionRecorder(db: D1Database, enabled: boolean, s
     if (available) await recordSourceDecisions(db, companyId, jobs, customTitles, shadow)
       .catch(() => console.error("Source classification audit failed"));
   };
+}
+
+/**
+ * Postings at a company Jev has read as open in the US. The only way Jev's
+ * answers reach users (owner, 2026-11-08): the owner's reviews had it right 18
+ * to 1 on US eligibility, and wrong more often than the rules on everything
+ * else. The latest answer stands, and anything short of a confident yes is no.
+ */
+export async function locationRulings(db: D1Database, companyId: string): Promise<Set<string>> {
+  const rows = await db.prepare(`SELECT external_id,
+      json_extract(answers_json, '$.us_eligibility.choice') AS choice,
+      json_extract(answers_json, '$.us_eligibility.probabilities.yes') AS yes
+    FROM job_classification_shadow
+    WHERE company_id = ? AND status = 'complete' AND reason IN ('rejected_location', ?)
+    ORDER BY completed_at`).bind(companyId, LOCATION_RULING)
+    .all<{ external_id: string; choice: string | null; yes: number | null }>();
+  const latest = new Map<string, boolean>();
+  for (const row of rows.results ?? []) {
+    latest.set(row.external_id, row.choice === "yes" && (row.yes ?? 0) >= MIN_RULING_CONFIDENCE);
+  }
+  return new Set([...latest].filter(([, open]) => open).map(([id]) => id));
+}
+
+/** Only a location no filter can read changes: if the source later names a place, that wins. */
+export function applyLocationRulings(jobs: JobListing[], rulings: ReadonlySet<string>): JobListing[] {
+  if (rulings.size === 0) return jobs;
+  return jobs.map((job) => (rulings.has(job.externalId) && isUnreadableLocation(job.location)
+    ? { ...job, location: ruledUsLocation(job.location) }
+    : job));
 }
 
 export function shadowDailyLimit(value?: string): number {
@@ -169,7 +212,9 @@ export async function runClassificationShadow(
     WHERE status = 'running' AND started_at < ?`)
     .bind(now.toISOString(), new Date(now.getTime() - 10 * 60_000).toISOString()).run();
   const rows = await db.prepare(`SELECT cache_key FROM job_classification_shadow
-    WHERE status = 'pending' AND attempts < 2 ORDER BY queued_at, cache_key LIMIT 10`)
+    WHERE status = 'pending' AND attempts < 2
+    ORDER BY CASE reason WHEN ? THEN 0 ELSE 1 END, queued_at, cache_key LIMIT 10`)
+    .bind(LOCATION_RULING)
     .all<{ cache_key: string }>();
   let completed = 0;
   // Two concurrent calls, ten per invocation. Alerts have already been sent.

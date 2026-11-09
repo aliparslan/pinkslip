@@ -2,8 +2,9 @@
 
 The deterministic catalog policy remains authoritative. This change repairs
 verified title and qualification misses and adds a bounded Jev comparison path.
-Jev does not write job features, accept jobs, change human labels, or send alerts.
-This is not yet a production model classifier rollout.
+Jev does not write job features, change human labels, or send alerts. Its one say
+over the catalog is on locations no filter can read (see "Location rulings"). This
+is not a production model classifier rollout.
 
 ## Enablement
 
@@ -38,6 +39,30 @@ Source adapters that omit descriptions for rejected rows contribute decision
 telemetry, but cannot enter the model sample until full content is available.
 Reference-only sources record successfully hydrated detail rows, not uninspected
 references. No extra crawl is added merely to obtain a rejected description.
+
+## Location rulings
+
+Some locations say how or roughly where, but not whether the US is included:
+"Hybrid", "In-Office", "Americas", "Remote, AMER", "Global". The filter has to
+reject them, and only the posting's text can settle it. The owner's reviews had
+Jev right 18 to 1 on US eligibility, while the rules beat it on job family and
+seniority, so this is the only question whose answer reaches users (2026-11-08).
+
+- `isUnreadableLocation` decides what counts. A place named anywhere in the text
+  ("Remote - EU", "Hybrid - Toronto") stays the filter's call.
+- A posting is queued as `location_ruling` only when the location is all that
+  stands in its way: every other catalog gate has to pass. These go ahead of the
+  samples and have their own 500-row cap, so a full sample queue can't drop them.
+- `us_eligibility` must be `yes` at 0.8 or above. The latest answer for a posting
+  stands; `no`, `unclear` or a weaker `yes` leaves it rejected.
+- On a yes, `pollCompany` rewrites the location before any filter runs ("Hybrid"
+  becomes "Hybrid, United States"), so scope, features, matching and alerts need
+  no special case. If the source later names a place, the ruling stops applying.
+- Sources without descriptions in their listings can't be asked. Today's unreadable
+  locations are nearly all on Greenhouse and Ashby, which include them.
+
+To turn this off, revert the change: jobs it admitted fail the filter and close as
+absent on their next polls.
 
 ## Limits and cache
 

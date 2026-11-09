@@ -37,7 +37,7 @@ import {
   type QuarantinedSource,
 } from "./admin-alerts";
 import { hasTable } from "./db-schema";
-import { sourceDecisionRecorder } from "./classification-shadow";
+import { applyLocationRulings, locationRulings, sourceDecisionRecorder } from "./classification-shadow";
 import { queuedPollingTiers, sourcePollRecord } from "./poll-schedule";
 import type { PayRange } from "../shared/pay-ranges";
 
@@ -647,7 +647,7 @@ export async function pollCompany(
         options.fullBackfill ? "complete" : "discovery"
       )
     : { jobs: [], complete: false };
-  const fetchedSnapshot = pollingSnapshot.jobs;
+  const fetchedSnapshot = applyLocationRulings(pollingSnapshot.jobs, await locationRulings(db, company.id));
   await options.recordDecisions?.(company.id, fetchedSnapshot, customTitles);
   // A complete detail backfill proves which manifest rows were inspected. Read
   // the live manifest once more afterward: IDs added during the long crawl stay

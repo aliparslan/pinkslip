@@ -107,3 +107,27 @@ export function isUsJobLocation(location: string): boolean {
   //    attached to "remote" must supply its own explicit US marker above.
   return /^(?:remote|distributed|work from home)$/.test(normalized);
 }
+
+const UNREADABLE_WORDS = /^(?:(?:hybrid|remote|flexible|distributed|in office|on site|onsite|americas?|amer|north america|na|global|worldwide|anywhere)(?:\s+|$))+$/;
+
+/**
+ * "Hybrid", "In-Office", "Remote, AMER": how or roughly where, but not whether
+ * the US is included. Only the posting can say, so these are the one kind of
+ * location Jev rules on (owner, 2026-11-08). A place named anywhere in the text
+ * ("Remote - EU") is readable, and stays the filter's call.
+ */
+export function isUnreadableLocation(location: string): boolean {
+  if (isUsJobLocation(location)) return false;
+  const words = location.toLowerCase().replace(/[^a-z]+/g, " ").trim();
+  return words.length > 0 && UNREADABLE_WORDS.test(words);
+}
+
+/** The same posting once Jev has read it as open in the US, in words the filters and the feed understand. */
+export function ruledUsLocation(location: string): string {
+  const words = location.toLowerCase();
+  const mode = /\bhybrid\b/.test(words) ? "Hybrid"
+    : /\b(?:remote|distributed)\b/.test(words) ? "Remote"
+    : /\bin[- ]?office\b|\bon[- ]?site\b/.test(words) ? "On-site"
+    : null;
+  return mode ? `${mode}, United States` : "United States";
+}

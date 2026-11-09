@@ -134,7 +134,7 @@ export function compareClassification(
   const fields: FieldComparison[] = [];
 
   const usChecked = !SCOPE_REASONS.has(sampledReason);
-  const rulesUs = sampledReason === "rejected_location" ? "no" : usChecked ? "yes" : "not checked";
+  const rulesUs = sampledReason === "rejected_location" || sampledReason === "location_ruling" ? "no" : usChecked ? "yes" : "not checked";
   fields.push(field("us_eligibility", "US eligible", rulesUs, choice("us_eligibility"),
     usChecked && DEFINITE(choice("us_eligibility")) && rulesUs !== choice("us_eligibility")));
 
