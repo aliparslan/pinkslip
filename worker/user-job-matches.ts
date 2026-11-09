@@ -28,7 +28,9 @@ import { isUsJobLocation } from "./us-jobs";
 import { qualificationsEligible, qualificationYearsForProfile } from "./qualification-requirements";
 
 // Bump whenever binary eligibility semantics change so cached matches rebuild.
-export const MATCHER_VERSION = "profile-v20-coded-countries";
+export const MATCHER_VERSION = "profile-v21-levelled-no-years";
+/** Where the mid-career band starts: enough to be shown a Senior title that states no years. */
+const MID_CAREER_MIN_YEARS = 3;
 const MATCH_WARM_BATCH_SIZE = 750;
 
 export interface UserJobMatch {
@@ -116,7 +118,12 @@ export function evaluateJobForProfile(
     && profileRoleKeywords(profile).some((keyword) => normalizedTitle.includes(keyword.toLowerCase()));
   const careerStages = catalogCareerStages(features);
   const targetStages = effectiveTargetStages(profile);
-  const stageDisqualified = !careerStages.some((stage) => targetStages.includes(stage));
+  // Nearly everyone keeps the mid-career stage on, so the stage alone can't hold
+  // a Senior title with no stated years back from someone a year out of school.
+  const levelledWithoutYears = (features.seniority === "mid_level" || features.seniority === "senior")
+    && features.min_years === null;
+  const stageDisqualified = !careerStages.some((stage) => targetStages.includes(stage))
+    || (levelledWithoutYears && profile.years_experience < MID_CAREER_MIN_YEARS);
 
   // A stated requirement above the ceiling is the only hard experience signal.
   // A posting that states nothing is NOT excluded — see ELIGIBLE_SENIORITIES.

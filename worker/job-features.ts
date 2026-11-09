@@ -828,7 +828,10 @@ export function catalogCareerStages(features: Pick<JobFeatures, "seniority" | "m
   if (min !== null && min > MAX_YEARS_EXPERIENCE) return [];
   if (features.seniority === "internship" || features.seniority === "new_grad") return [features.seniority];
   const levelled = features.seniority === "mid_level" || features.seniority === "senior";
-  if (levelled ? min === null : features.seniority !== "early_career") return [];
+  // A levelled title that states no number is a fair bet for several years, so
+  // it reaches people looking at mid-career roles and no one earlier (owner, 2026-11-09).
+  if (levelled && min === null) return ["mid_career"];
+  if (!levelled && features.seniority !== "early_career") return [];
   if (min === null || min < 3) return ["early_career"];
   if (min === 3) return ["early_career", "mid_career"];
   // A junior or associate title asking for four or five years keeps its

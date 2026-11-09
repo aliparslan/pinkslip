@@ -921,7 +921,8 @@ describe("catalogCareerStages", () => {
   it("places senior titles by their stated minimum", () => {
     expect(catalogCareerStages({ seniority: "senior", min_years: 2 })).toEqual(["early_career"]);
     expect(catalogCareerStages({ seniority: "senior", min_years: 5 })).toEqual(["mid_career"]);
-    expect(catalogCareerStages({ seniority: "senior", min_years: null })).toEqual([]);
+    expect(catalogCareerStages({ seniority: "senior", min_years: null })).toEqual(["mid_career"]);
+    expect(catalogCareerStages({ seniority: "mid_level", min_years: null })).toEqual(["mid_career"]);
     expect(catalogCareerStages({ seniority: "senior", min_years: 6 })).toEqual([]);
   });
 

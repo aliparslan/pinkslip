@@ -80,9 +80,14 @@ and chip roles like Micron's DFT and NVIDIA's verification engineers.
 
 ## Where to look next
 
-- Widen the other-engineering filter for the titles above, then re-score both samples,
-  since a wider filter can also start rejecting good jobs.
-- "(Manager, IC)" shouldn't count as management.
+- Done: the other-engineering filter now covers those titles. On the sample it was
+  written from, it catches 23 of the 28 leaks and rejects none of the good jobs. Of all
+  live jobs it would remove 267, and 69 of 70 of those read at random were right. Because
+  the rules came from this sample, 23 of 28 flatters it.
+- Done: "(Manager, IC)" no longer counts as management.
+- Done: a Senior or mid-level title with no stated years now reaches people with three
+  or more years' experience. The mid-career stage alone wouldn't do, because 169 of 174
+  onboarded users have it on, 111 of them with one year's experience.
 - A rule for security analysts would need care: SpaceX's Insider Threat Analyst and
   similar roles aren't technical.
 - Research internships often have no technical words in the title, so they'd need the

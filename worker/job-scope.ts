@@ -139,7 +139,7 @@ const GENERIC_TECH_SCIENTIST =
  * "Engineer" too and are excluded for the same reason.
  */
 const OTHER_ENGINEERING_DISCIPLINE =
-  /\b(?:process development|mechanical|electrical|civil|structural|propulsion|manufacturing|industrialization|chemical|biomedical|optical|industrial|aerospace|materials|avionics|thermal|hydraulic|welding|composites|hardware|rf|rfic|asic|soc|rtl|vlsi|fpga|semiconductor|silicon|cmos|analog|pcb|environmental|telecommunications|geotechnical|metallurgical|nuclear|petroleum|acoustic)\b/i;
+  /\b(?:process development|mechanical|electrical|civil|structural|propulsion|manufacturing|industrialization|chemical|biomedical|optical|industrial|aerospace|materials|avionics|thermal|hydraulic|welding|composites|hardware|rf|rfic|asic|soc|rtl|vlsi|fpga|semiconductor|silicon|cmos|analog|pcb|environmental|telecommunications|geotechnical|metallurgical|nuclear|petroleum|acoustic|controls integration|engines system|fabrication|process engineer|serdes|photonics?|photonic|sourcing engineer|charging systems?|dft|design for test|physical design|dtco|fire protection|hvac|power plant|power generation|flight test|vehicle integration|vehicle structures|sustainment|rcdd|site development|fluids|product development engineer|maintenance engineer)\b/i;
 
 const SOFTWARE_ADJACENT_OVERRIDE =
   /\b(?:embedded|firmware|software|data|machine learning|ml|ai|security|infrastructure|platform|systems software|test automation)\b/i;
@@ -285,7 +285,8 @@ export function classifyTitleScope(
     return { admitted: false, reason: "rejected_no_technical_signal" };
   }
 
-  if (MANAGEMENT_PATTERN.test(normalizedTitle)) {
+  // "(Manager, IC)" is Capital One's label for a senior individual contributor.
+  if (MANAGEMENT_PATTERN.test(normalizedTitle.replace(/\(\s*manager\s*,\s*ic\s*\)/i, ""))) {
     return { admitted: false, reason: "rejected_management" };
   }
 

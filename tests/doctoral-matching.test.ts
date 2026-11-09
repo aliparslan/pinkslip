@@ -31,6 +31,12 @@ describe("five-year and doctoral matching", () => {
       expect(match(title, "PhD required. 1 year of experience required.", { highest_education: "doctorate" }).plausible).toBe(false);
     }
   });
+  test("a Senior title with no stated years reaches only people a few years in", () => {
+    expect(match("Senior Software Engineer", "Build software.", { years_experience: 3 }).plausible).toBe(true);
+    expect(match("Senior Software Engineer", "Build software.", { years_experience: 2 }).plausible).toBe(false);
+    expect(match("Staff Software Engineer", "Build software.", { years_experience: 8 }).plausible).toBe(false);
+    expect(match("Senior Software Engineer", "8+ years of experience required.", { years_experience: 8 }).plausible).toBe(false);
+  });
   test("completed doctoral jobs require a completed doctorate", () => {
     for (const education of ["unspecified", "bachelor", "master"]) {
       expect(match("Software Engineer", "PhD required.", { highest_education: education, doctoral_student: true }).plausible).toBe(false);

@@ -390,3 +390,24 @@ describe("solutions roles", () => {
     }
   });
 });
+
+describe("other engineering titles that sound general", () => {
+  it("are filtered out", () => {
+    for (const title of ["Fire Protection Engineer", "HVAC Design Engineer (Facilities)", "Power Generation Engineer", "Etch Process Engineer", "Senior DFT Methodology Engineer", "Flight Test Engineer", "Vehicle Integration Engineer II"]) {
+      expect(classifyTitleScope(title).reason).toBe("rejected_other_engineering_discipline");
+    }
+  });
+
+  it("leave software roles alone", () => {
+    for (const title of ["Software Engineer, Flight Test Tools", "Software Engineer, Fabrication Systems", "Data Engineer, Power Generation"]) {
+      expect(classifyTitleScope(title).admitted).toBe(true);
+    }
+  });
+});
+
+describe("management titles", () => {
+  it("don't count Capital One's individual contributor label", () => {
+    expect(classifyTitleScope("Data Engineer 4 (Manager, IC)").admitted).toBe(true);
+    expect(classifyTitleScope("Engineering Manager").admitted).toBe(false);
+  });
+});
