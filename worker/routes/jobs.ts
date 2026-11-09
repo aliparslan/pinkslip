@@ -290,7 +290,7 @@ export function buildStageExperienceFilter(
       clauses.push("(jf.seniority = 'early_career' OR (jf.seniority IN ('mid_level', 'senior') AND jf.min_years <= 3))");
     }
     if (stageFilter.includes("mid_career")) {
-      clauses.push("(jf.seniority IN ('early_career', 'mid_level', 'senior') AND jf.min_years BETWEEN 3 AND 5)");
+      clauses.push("(jf.seniority IN ('early_career', 'mid_level', 'senior') AND jf.min_years BETWEEN 3 AND 5 OR jf.seniority IN ('mid_level', 'senior') AND jf.min_years IS NULL)");
     }
     return { conditions: [`(${clauses.join(" OR ")})`], bindings: direct };
   }
