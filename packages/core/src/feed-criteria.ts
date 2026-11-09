@@ -23,6 +23,8 @@ export interface FeedSearch {
   max?: number;
   listing?: "evergreen";
   saved?: 1;
+  /** Highest pay first. Newest first when it's left out. */
+  sort?: "pay";
 }
 
 export type FeedLocation = LocationId | "remote";
@@ -57,6 +59,7 @@ export function validateFeedSearch(search: Record<string, unknown>): FeedSearch 
   if (max) result.max = max;
   if (search.listing === "evergreen") result.listing = "evergreen";
   if (search.saved === 1 || search.saved === "1" || search.saved === true) result.saved = 1;
+  if (search.sort === "pay") result.sort = "pay";
   return result;
 }
 
@@ -114,6 +117,7 @@ export function feedParams(search: FeedSearch, available: readonly CareerStage[]
   if (search.max) params.max_salary = String(search.max * 1000);
   if (search.listing) params.posted = search.listing;
   if (search.saved) params.saved = "true";
+  if (search.sort) params.sort = search.sort;
   return params;
 }
 

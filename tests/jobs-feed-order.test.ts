@@ -3,12 +3,34 @@ import { describe, expect, it } from "bun:test";
 import {
   buildStageExperienceFilter,
   JOB_FEED_ORDER_BY,
+  JOB_FEED_ORDER_BY_PAY,
   JOB_MATCH_FACT_CASE,
   matchJoin,
   parseStageFilter,
 } from "@worker/routes/jobs";
 
 describe("job feed order", () => {
+  it("sorts by the top of yearly pay, with slips, hourly pay and no pay last", () => {
+    const db = new Database(":memory:");
+    db.run("CREATE TABLE jobs (id TEXT PRIMARY KEY, posted_at TEXT, first_seen_at TEXT NOT NULL)");
+    db.run("CREATE TABLE job_features (job_id TEXT PRIMARY KEY, salary_max INTEGER, salary_period TEXT)");
+    const rows: [string, string, number | null, string | null][] = [
+      ["no-pay-newest", "2026-08-30T00:00:00.000Z", null, null],
+      ["typo", "2026-08-29T00:00:00.000Z", 190000000, "year"],
+      ["hourly", "2026-08-28T00:00:00.000Z", 95, "hour"],
+      ["top", "2026-08-01T00:00:00.000Z", 280000, "year"],
+      ["middle", "2026-08-02T00:00:00.000Z", 180000, "year"],
+    ];
+    for (const [id, at, max, period] of rows) {
+      db.run("INSERT INTO jobs VALUES (?, ?, ?)", [id, at, at]);
+      db.run("INSERT INTO job_features VALUES (?, ?, ?)", [id, max, period]);
+    }
+    const sorted = db.query<{ id: string }, []>(
+      `SELECT j.id FROM jobs j JOIN job_features jf ON jf.job_id = j.id ORDER BY ${JOB_FEED_ORDER_BY_PAY}`
+    ).all();
+    expect(sorted.map((row) => row.id)).toEqual(["top", "middle", "no-pay-newest", "typo", "hourly"]);
+  });
+
   it("orders by the full normalized source timestamp before discovery time", () => {
     const db = new Database(":memory:");
     db.run(`

@@ -42,6 +42,19 @@ import type { PayRange } from "../../shared/pay-ranges";
 export const JOB_FEED_ORDER_BY =
   "datetime(COALESCE(j.posted_at, j.first_seen_at)) DESC, j.first_seen_at DESC, j.id DESC";
 
+/** Above this a job's pay is a parsing slip ("$190,000K"), so it sorts with the
+ * jobs that don't say. */
+const MOST_BELIEVABLE_PAY = 1_000_000;
+
+/** Highest pay first, by the top of the range. Hourly pay and jobs that don't
+ * say come last, newest first among themselves. */
+export const JOB_FEED_ORDER_BY_PAY = `
+  CASE WHEN jf.salary_period = 'year' AND jf.salary_max <= ${MOST_BELIEVABLE_PAY} THEN jf.salary_max END DESC NULLS LAST,
+  ${JOB_FEED_ORDER_BY}`;
+
+/** The first page stops counting here when the client says it can show "1000+". */
+const MATCHING_COUNT_CAP = 1000;
+
 export const JOB_MATCH_FACT_CASE = `CASE
   WHEN jf.seniority = 'internship' THEN 'Internship'
   WHEN jf.seniority = 'new_grad' THEN 'New-grad role'
@@ -347,23 +360,6 @@ export function parseSalaryRange(salary: string | null): { min: number; max: num
   };
 }
 
-function passesAdvancedFilters(
-  row: JobListRow,
-  filters: {
-    minSalary: number | null;
-    maxSalary: number | null;
-  }
-): boolean {
-  if (filters.minSalary !== null || filters.maxSalary !== null) {
-    const range = parseSalaryRange(row.salary);
-    if (!range) return false;
-    if (filters.minSalary !== null && range.max < filters.minSalary) return false;
-    if (filters.maxSalary !== null && range.min > filters.maxSalary) return false;
-  }
-
-  return true;
-}
-
 jobs.get("/", async (c) => {
   const userId = c.get("userId");
   const {
@@ -383,6 +379,8 @@ jobs.get("/", async (c) => {
     roles,
     scope,
     stages,
+    sort,
+    count_cap,
   } = c.req.query();
   const everyJob = scope === "all" && q !== undefined && q.trim() !== "";
   const roleFilter = parseRoleFilter(roles);
@@ -394,9 +392,11 @@ jobs.get("/", async (c) => {
     return c.json({ error: "Invalid stages filter" }, 400);
   }
 
-  if (posted === "evergreen") {
+  // The first page has just done this; later pages are the same list.
+  const firstPage = !(parseInt(offset ?? "0", 10) > 0);
+  if (firstPage && posted === "evergreen") {
     await ensureUserEvergreenMatchesReady(c.env.DB, userId);
-  } else if (!everyJob) {
+  } else if (firstPage && !everyJob) {
     await ensureUserJobMatchesReady(c.env.DB, userId);
   }
 
@@ -414,11 +414,6 @@ jobs.get("/", async (c) => {
   const maxYoe = Number.isFinite(parsedMaxYoe)
     ? Math.max(0, Math.min(MAX_YEARS_EXPERIENCE, parsedMaxYoe))
     : null;
-  const advancedFilters = {
-    minSalary: Number.isFinite(minSalary) ? minSalary : null,
-    maxSalary: Number.isFinite(maxSalary) ? maxSalary : null,
-  };
-  const hasAdvancedFilters = Object.values(advancedFilters).some((value) => value !== null);
 
   const conditions: string[] = [
     "c.enabled = 1",
@@ -548,68 +543,68 @@ jobs.get("/", async (c) => {
     bindings.push(...locationFilter.bindings);
   }
 
+  // Yearly pay only, as the feed has always filtered it: an hourly rate can't
+  // be compared with a yearly floor.
+  if (Number.isFinite(minSalary)) {
+    conditions.push("jf.salary_period = 'year' AND jf.salary_max >= ?");
+    bindings.push(minSalary);
+  }
+  if (Number.isFinite(maxSalary)) {
+    conditions.push("jf.salary_period = 'year' AND jf.salary_min <= ?");
+    bindings.push(maxSalary);
+  }
+
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
   // Feed order is intentionally factual: newest source/detection date first.
   // User eligibility is binary, so there is no hidden score affecting rank.
-  const orderBy = JOB_FEED_ORDER_BY;
+  const orderBy = sort === "pay" ? JOB_FEED_ORDER_BY_PAY : JOB_FEED_ORDER_BY;
 
-  const sql = `
-    SELECT ${hasAdvancedFilters ? JOB_DETAIL_FIELDS : JOB_LIST_FIELDS}
+  const fromWhere = `
     FROM jobs j
     JOIN companies c ON j.company_id = c.id
     JOIN job_features jf ON jf.job_id = j.id
     ${matchJoin(everyJob)}
     LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
     ${where}
+  `;
+  const sql = `
+    SELECT ${JOB_LIST_FIELDS}
+    ${fromWhere}
     ORDER BY ${orderBy}
     LIMIT ? OFFSET ?
   `;
 
-  const queryLimit = hasAdvancedFilters
-    ? 1000
-    : limitVal + 1;
-  const queryOffset = hasAdvancedFilters ? 0 : offsetVal;
   // Everything the feed matches, counted once on the first page so the app
   // can count its last section (owner, 2026-10-13: a count on every section).
-  // Advanced filters already fetch every candidate, so their count is free.
-  const countMatching = offsetVal === 0 && !hasAdvancedFilters;
+  // A client that can show "1000+" asks to stop there: counting every match
+  // cost more than reading the page. Older builds still get the exact number.
+  const capCount = count_cap === "1";
   // The count has no columns, so it skips the values bound to the columns'
   // own placeholders (the user's saved and applied flags), which come first.
   const countBindings = bindings.slice((JOB_LIST_FIELDS.match(/\?/g) ?? []).length);
-  bindings.push(queryLimit, queryOffset);
+  bindings.push(limitVal + 1, offsetVal);
 
   const stmt = c.env.DB.prepare(sql);
   const [result, counted] = await Promise.all([
     stmt.bind(...bindings).all<JobListRow>(),
-    countMatching
-      ? c.env.DB.prepare(`
-          SELECT COUNT(*) AS n
-          FROM jobs j
-          JOIN companies c ON j.company_id = c.id
-          JOIN job_features jf ON jf.job_id = j.id
-          ${matchJoin(everyJob)}
-          LEFT JOIN job_review_queue jrq ON jrq.job_id = j.id
-          ${where}
-        `).bind(...countBindings).first<{ n: number }>()
+    firstPage
+      ? c.env.DB.prepare(capCount
+        ? `SELECT COUNT(*) AS n FROM (SELECT 1 ${fromWhere} LIMIT ${MATCHING_COUNT_CAP})`
+        : `SELECT COUNT(*) AS n ${fromWhere}`).bind(...countBindings).first<{ n: number }>()
       : Promise.resolve(null),
   ]);
-  const filteredRows = hasAdvancedFilters
-    ? (result.results ?? []).filter((row) => passesAdvancedFilters(row, advancedFilters))
-    : (result.results ?? []);
-  const rows = hasAdvancedFilters
-    ? filteredRows.slice(offsetVal, offsetVal + limitVal)
-    : filteredRows.slice(0, limitVal);
+  const found = result.results ?? [];
+  const rows = found.slice(0, limitVal);
 
   return c.json({
     jobs: rows.map(serializeJob),
     meta: {
-      total: filteredRows.length,
+      total: found.length,
       count: rows.length,
-      has_more: hasAdvancedFilters
-        ? offsetVal + rows.length < filteredRows.length || (result.results ?? []).length === queryLimit
-        : filteredRows.length > limitVal,
+      has_more: found.length > limitVal,
       next_offset: offsetVal + rows.length,
-      ...(counted ? { matching: counted.n } : hasAdvancedFilters && offsetVal === 0 ? { matching: filteredRows.length } : {}),
+      ...(counted ? { matching: counted.n } : {}),
+      ...(counted && capCount && counted.n >= MATCHING_COUNT_CAP ? { matching_capped: true } : {}),
     },
   });
 });

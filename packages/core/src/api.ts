@@ -639,6 +639,8 @@ export interface JobsListMeta {
   /** Every job the feed matches, on its first page (Worker from Nov 8 2026);
    * `total` only counts the rows fetched for the page. */
   matching?: number;
+  /** `matching` stopped at the cap, so there are at least that many. */
+  matching_capped?: boolean;
 }
 
 export type CareerStageQuery =
@@ -665,6 +667,10 @@ export interface JobsListParams {
   posted?: string;
   /** "all" with `q`: every open job, not only those matching your search. */
   scope?: "all";
+  /** "pay": highest pay first. Newest first when it's left out. */
+  sort?: "pay";
+  /** "1": stop counting `matching` at the cap, for a client that can show it. */
+  count_cap?: "1";
 }
 
 export interface MeResponse {

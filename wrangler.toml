@@ -10,6 +10,12 @@ compatibility_flags = ["nodejs_compat"]
 workers_dev = false
 preview_urls = false
 
+# Beside the database (its primary serves from Dallas): the feed makes several
+# trips to D1 per request, and each one paid the distance from the visitor's
+# nearest data center. Crons and queues aren't affected.
+[placement]
+region = "gcp:us-south1"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "pinkslip"
