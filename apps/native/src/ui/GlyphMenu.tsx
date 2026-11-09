@@ -1,5 +1,5 @@
 import { Button, ControlGroup, Host, Image, Label, Menu, RNHostView, Section, Toggle } from "@expo/ui/swift-ui";
-import { accessibilityLabel, controlSize } from "@expo/ui/swift-ui/modifiers";
+import { accessibilityLabel, controlSize, menuActionDismissBehavior } from "@expo/ui/swift-ui/modifiers";
 import { Icon as RouterIcon, Label as RouterLabel, Link } from "expo-router";
 import * as Updates from "expo-updates";
 import type { ReactNode } from "react";
@@ -71,7 +71,11 @@ export interface GlyphMenuSpec {
  * without words (Save and Hide), then `items` with an icon each, then `last`
  * in a group of its own (Block). The trigger is the children.
  */
-export function GlyphMenu({ top = [], items, last = [], children }: GlyphMenuSpec & { children: ReactNode }) {
+export function GlyphMenu({ top = [], items, last = [], keepOpen = false, children }: GlyphMenuSpec & {
+  /** Stays open after a choice, for picking several. */
+  keepOpen?: boolean;
+  children: ReactNode;
+}) {
   const button = (item: GlyphMenuItem | WordMenuItem) => item.on !== undefined
     ? <Toggle key={item.id} isOn={item.on} onIsOnChange={() => item.onSelect()}>
       <Label title={item.title} icon={item.glyph ? <GlyphImage glyph={item.glyph} /> : undefined} />
@@ -93,7 +97,7 @@ export function GlyphMenu({ top = [], items, last = [], children }: GlyphMenuSpe
     <GlyphImage glyph={item.glyph} />
   </Button>;
   return <Host matchContents ignoreSafeArea="all">
-    <Menu label={<RNHostView matchContents><>{children}</></RNHostView>}>
+    <Menu label={<RNHostView matchContents><>{children}</></RNHostView>} modifiers={keepOpen ? [menuActionDismissBehavior("disabled")] : undefined}>
       {top.length > 0 ? <ControlGroup modifiers={[controlSize("small")]}>{top.map(iconButton)}</ControlGroup> : null}
       {items.map(button)}
       {last.length > 0 ? <Section>{last.map(button)}</Section> : null}

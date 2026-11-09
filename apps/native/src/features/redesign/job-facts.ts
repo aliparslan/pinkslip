@@ -70,9 +70,24 @@ export function rowLevel(job: FactsJob): string | null {
 /** Line two of a row after the company: level, place, pay. The level is left
  * out when the search shows only that level (owner, 2026-11-08: "New grad"
  * on every row of a new-grad feed said nothing). */
-export function rowFacts(job: FactsJob, onlyStage?: Stage): string {
+export function rowFacts(job: FactsJob, onlyStage?: Stage, { onlyPlace = false, ageNotPay = false }: {
+  /** The search shows one place, so a job in just that place needn't say it. */
+  onlyPlace?: boolean;
+  /** Pay has the trailing slot, sorted by pay, so the age takes its place here. */
+  ageNotPay?: boolean;
+} = {}): string {
   const level = onlyStage && stageOf(job).stage === onlyStage ? null : rowLevel(job);
-  return [level, formatRowLocation(job.location), formatRowSalary(job.salary)].filter(Boolean).join(" · ");
+  const place = formatRowLocation(job.location);
+  return [level, onlyPlace && !place?.includes("+") ? null : place, ageNotPay ? rowAge(job) : formatRowSalary(job.salary)].filter(Boolean).join(" · ");
+}
+
+/** The top of a yearly pay range for the row's trailing slot: "$280K".
+ * Nothing for hourly pay or a job that doesn't say. */
+export function rowTopPay(job: FactsJob): string | undefined {
+  const pay = formatRowSalary(job.salary);
+  if (!pay || pay.includes("/")) return undefined;
+  const top = pay.match(/\d+(?:\.\d+)?K/g)?.at(-1);
+  return top ? `${/^[$£€¥]/.test(pay) ? pay[0] : "$"}${top}` : undefined;
 }
 
 /** The age in the row's trailing slot: "2h", "3d". */

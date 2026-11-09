@@ -1,3 +1,4 @@
+import { Menu, type MenuItem } from "../kit/Menu";
 import { Children, createContext, Fragment, useContext, type ReactNode } from "react";
 import { Pressable, Switch, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -129,6 +130,8 @@ export interface SectionHeaderProps {
   needsYou?: boolean;
   /** A mark before the label: Tracker's stage ring, in its stage's color. */
   leading?: ReactNode;
+  /** Opens a system menu from the name, with a down caret: the sort on Jobs. */
+  menu?: ReadonlyArray<MenuItem>;
   /** Makes the header the way into its group, with a chevron at the far
    * right after the count. */
   onPress?: () => void;
@@ -140,23 +143,35 @@ export interface SectionHeaderProps {
 /** The name above a run of plain rows (New today, Earlier this week), with
  * its count at the far right in the same size and color (owner, 2026-11-08,
  * Paper "Section headers and counts · Nov 8", D). */
-export function SectionHeader({ title, count, needsYou, leading, onPress, first }: SectionHeaderProps) {
+export function SectionHeader({ title, count, needsYou, leading, onPress, first, menu }: SectionHeaderProps) {
   const tone = needsYou ? "accent" : "ink";
   const label = count === undefined ? title : `${title}, ${count}`;
   const content = <>
     {leading ? <View style={styles.sectionLeading}>{leading}</View> : null}
-    <View style={styles.sectionLabel}>
-      <Text role="section" tone={tone} flex>{title}</Text>
+    <View style={[styles.sectionLabel, menu && styles.sectionLabelCentered]}>
+      {menu ? <View style={styles.sectionMenu}>
+        <Menu items={menu}>
+          <View style={styles.sectionMenuName} accessibilityRole="button" accessibilityLabel={`Sorted by ${title}`}>
+            <Text role="section" tone={tone}>{title}</Text>
+            <Icon name="down" size={12} tone={tone} />
+          </View>
+        </Menu>
+      </View> : <Text role="section" tone={tone} flex>{title}</Text>}
       {count !== undefined ? <Text role="section" tone={tone}>{String(count)}</Text> : null}
       {onPress ? <View style={styles.sectionChevron}><Icon name="disclosure" size={13} tone="ink-3" /></View> : null}
     </View>
   </>;
+  if (menu) return <View style={[styles.section, first && styles.sectionFirst]}>{content}</View>;
   if (!onPress) return <View style={[styles.section, first && styles.sectionFirst]} accessible accessibilityRole="header" accessibilityLabel={label}>{content}</View>;
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}
     style={({ pressed }) => [styles.section, first && styles.sectionFirst, pressed && styles.sectionPressed]}>{content}</Pressable>;
 }
 
 const styles = StyleSheet.create((theme) => ({
+  // A menu's host has no baseline to line up with.
+  sectionLabelCentered: { alignItems: "center" },
+  sectionMenu: { flex: 1, alignItems: "flex-start" },
+  sectionMenuName: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["1"] + 2 },
   // React Native pins a switch to the top of its row; iOS 26's shows it.
   switch: { alignSelf: "center" },
   group: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.space["4"] },

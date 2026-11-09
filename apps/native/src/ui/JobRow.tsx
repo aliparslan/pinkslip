@@ -37,6 +37,8 @@ export interface JobRowProps {
   onLongPress?: () => void;
   /** A zoom out of the row needs its height (RowZoom). */
   onLayout?: (event: LayoutChangeEvent) => void;
+  /** What's in the age's slot is what the list is sorted by (pay): full ink. */
+  ageStrong?: boolean;
   /** The row's menu again, for VoiceOver's actions rotor. */
   actions?: { id: string; label: string; run: () => void }[];
 }
@@ -59,7 +61,7 @@ export const LastInSection = createContext(false);
  * and separators start on the 68 line. Tracker's row makes the company the
  * headline and Today's the news, three lines of one line each, 84 tall.
  */
-export function JobRow({ title, company, facts, age, stage, unread: newToYou, headline, needsYou = false, logo, leading, factsBad, quiet, onPress, onLongPress, onLayout, actions }: JobRowProps) {
+export function JobRow({ title, company, facts, age, ageStrong, stage, unread: newToYou, headline, needsYou = false, logo, leading, factsBad, quiet, onPress, onLongPress, onLayout, actions }: JobRowProps) {
   const tracker = headline === "company";
   const news = headline === "news";
   const unread = newToYou && !tracker && !news;
@@ -88,7 +90,7 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
       <View style={styles.line}>
         <Text role="subhead" weight={weight} tone={quiet ? "ink-3" : "ink"} lines={2} flex>{title}</Text>
         {age || dot ? <View style={styles.age}>
-          {age ? <Text role="subhead" tone="ink-3">{age}</Text> : null}
+          {age ? <Text role="subhead" tone={ageStrong ? "ink" : "ink-3"}>{age}</Text> : null}
           {dot ? <View style={styles.dot} /> : null}
         </View> : null}
       </View>

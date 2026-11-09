@@ -1,6 +1,6 @@
-import { feedParams, selectedStages, type FeedSearch } from "@pinkslip/core/feed-criteria";
+import { feedParams, locationLabels, selectedStages, type FeedLocation, type FeedSearch } from "@pinkslip/core/feed-criteria";
 import { timeAgo } from "@pinkslip/core/utils";
-import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
+import { CAREER_STAGE_OPTIONS, LOCATION_OPTIONS } from "@pinkslip/domain/search-profile";
 import { useFeed, usePrefetchFeed, useStats, useViewedJobs } from "@pinkslip/data";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Link, useNavigation, useRoute } from "expo-router";
@@ -8,9 +8,9 @@ import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from
 import { ActivityIndicator, Image, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { usePullToRefresh } from "../../kit";
+import { Menu, usePullToRefresh, type MenuItem } from "../../kit";
 import {
-  changedKeys, Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useListMotion, useRowsSwap, useTabBarScroll, useTabBarSpace, useTopEdge,
+  changedKeys, Chip, ChipAction, ChipFace, closeOpenSwipeRow, EmptyState, GlyphMenu, glyphMenuAction, Icon, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useListMotion, useRowsSwap, useTabBarScroll, useTabBarSpace, useTopEdge,
   type GlyphMenuItem, type MenuGlyph, type SwipeAction, LastInSection } from "../../ui";
 import { useMotionTrial } from "../../ui/motion-trial";
 import { useFeedCriteria } from "../feed/Feed";
@@ -26,13 +26,14 @@ import { isOffline, LoadMoreFailed, useRetryWhileOffline } from "./errors";
 import { useJobPreview } from "./JobPreview";
 import { rowZoomId } from "../../platform/links";
 import { RowZoom, zoomParams } from "./RowZoom";
-import { arrivedAtTop, feedSections, plainText, rowAge, rowFacts, sectionCount } from "./job-facts";
+import { arrivedAtTop, feedSections, plainText, rowAge, rowFacts, rowTopPay, sectionCount } from "./job-facts";
+import { LocationFilterSheet } from "./LocationFilterSheet";
 import { STAGES_IN_ORDER } from "./search-draft";
 
 // The poller runs every 15 minutes; past two hours it's clearly behind.
 const POLL_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
 
-type Item = { kind: "section"; key: string; title: string; count?: number } | { kind: "job"; key: string; job: RowJob };
+type Item = { kind: "section"; key: string; title: string; count?: number | string; sort?: boolean } | { kind: "job"; key: string; job: RowJob };
 
 const jobKeys = (items: readonly Item[]) => items.filter((item) => item.kind === "job").map((item) => item.key);
 const allKeys = (items: readonly Item[]) => items.map((item) => item.key);
@@ -80,7 +81,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const { preferences, available, defaults } = criteria;
   const searching = query !== undefined;
   const search = useMemo<FeedSearch>(() => ({ ...criteria.search, q: searching && query.trim() ? query : undefined }), [searching, criteria.search, query]);
-  const params = useMemo(() => (scope === "all" ? { q: search.q, scope: "all" as const } : feedParams(search, available, defaults)), [scope, search, available, defaults]);
+  const params = useMemo(() => (scope === "all" ? { q: search.q, scope: "all" as const } : listParams(search, available, defaults)), [scope, search, available, defaults]);
   const waiting = idle !== undefined && !search.q;
   // When the search shows only one level, the rows needn't say it.
   const onlyStage = useMemo(() => {
@@ -102,13 +103,25 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
     return holding ? all.slice(HELD_BACK) : all;
   }, [waiting, feed.data, holding]);
   const matching = feed.data?.pages[0]?.meta.matching;
-  const latest = useMemo(() => {
+  const capped = feed.data?.pages[0]?.meta.matching_capped === true;
+  const byPay = search.sort === "pay" && scope === "feed";
+  const latest = useMemo((): Item[] => {
+    const job = (row: (typeof jobs)[number]): Item => ({ kind: "job", key: row.id, job: row });
+    if (byPay) {
+      if (jobs.length === 0) return [];
+      const total = matching === undefined ? undefined : capped ? `${matching}+` : matching;
+      return [{ kind: "section", key: "section-pay", title: "Highest pay", count: total, sort: true }, ...jobs.map(job)];
+    }
     const sections = feedSections(jobs);
-    return sections.flatMap<Item>((section, index) => [
-      { kind: "section", key: `section-${section.title}`, title: section.title, count: sectionCount(sections, index, feed.hasNextPage, matching) },
-      ...section.jobs.map((job): Item => ({ kind: "job", key: job.id, job })),
-    ]);
-  }, [jobs, feed.hasNextPage, matching]);
+    return sections.flatMap<Item>((section, index): Item[] => {
+      const count = sectionCount(sections, index, feed.hasNextPage, matching);
+      const last = index === sections.length - 1 && feed.hasNextPage;
+      return [
+        { kind: "section", key: `section-${section.title}`, title: section.title, count: capped && last && count !== undefined ? `${count}+` : count, sort: index === 0 },
+        ...section.jobs.map(job),
+      ];
+    });
+  }, [jobs, feed.hasNextPage, matching, capped, byPay]);
   // Under a job's page the rows hold still, so going back zooms into the row
   // it grew from, and whatever changed meanwhile arrives once it has landed.
   const { steady: items, justReleased } = useSteadyUnderPage(latest);
@@ -195,9 +208,21 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
 
   const lastPolled = stats.data?.lastPolled;
   const stale = Boolean(lastPolled && Date.now() - new Date(lastPolled).getTime() > POLL_STALE_AFTER_MS);
+  const showChips = chips ?? !searching;
+  // On the first section's name (owner, 2026-11-09: "huge fan").
+  const setSort = (sort: "pay" | undefined) => {
+    const { sort: _old, ...rest } = search;
+    setFeedSearch(sort ? { ...rest, sort } : rest);
+  };
+  const sortMenu: MenuItem[] = [
+    { id: "newest", title: "Newest", checked: !byPay, onSelect: () => setSort(undefined) },
+    { id: "pay", title: "Highest pay", checked: byPay, onSelect: () => setSort("pay") },
+  ];
+  // One place picked: a job only there needn't say so.
+  const onlyPlace = scope === "feed" && Boolean(search.loc) && search.loc !== "all" && !search.loc?.includes(",");
   const header = <View>
     {typeof top === "function" ? top(offline) : top}
-    {(chips ?? !searching) ? <QuickFilters search={search} stages={available} defaults={defaults} ready={feed.isSuccess && !feed.isPlaceholderData} /> : null}
+    {showChips ? <QuickFilters search={search} stages={available} defaults={defaults} ready={feed.isSuccess && !feed.isPlaceholderData} /> : null}
     {stale && lastPolled ? <View style={styles.stale}>
       <Icon name="warning" size={16} tone="ink-3" />
       <Text role="footnote" tone="ink-2">Updated {timeAgo(lastPolled)}. New jobs may be missing.</Text>
@@ -216,8 +241,8 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
     // down to it (owner, 2026-11-07). The list stays where it is instead.
     maintainVisibleContentPosition={NO_ANCHOR}
     renderItem={({ item, index }) => item.kind === "section"
-      ? <SectionHeader title={item.title} count={item.count} first={index === 0} />
-      : <LastInSection.Provider value={shown[index + 1]?.kind !== "job"}><FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} onlyStage={onlyStage} /></LastInSection.Provider>}
+      ? <SectionHeader title={item.title} count={item.count} first={index === 0} menu={item.sort && showChips ? sortMenu : undefined} />
+      : <LastInSection.Provider value={shown[index + 1]?.kind !== "job"}><FeedRow job={item.job} viewed={Boolean(viewed.data?.has(item.job.id))} actions={actions} tab={tab} onOpen={onOpen} onlyStage={onlyStage} onlyPlace={onlyPlace} byPay={byPay} /></LastInSection.Provider>}
     onEndReached={loadMore} onEndReachedThreshold={0.6} onScrollBeginDrag={closeOpenSwipeRow}
     // Always there: adding or removing it rebuilds the list's content on iOS,
     // and Jobs' field in the header would lose its keyboard.
@@ -307,11 +332,16 @@ function useSteadyUnderPage<T>(latest: T): { steady: T; justReleased: boolean } 
 /** A row opens its job; long-press peeks at it with the row's actions under
  * the preview (a native context menu, so no extra view per row). Exported for
  * the kit's swipe lab, which runs it on sample jobs. */
-export function FeedRow({ job, viewed, actions, tab, onOpen, onlyStage }: {
+export function FeedRow({ job, viewed, actions, tab, onOpen, onlyStage, onlyPlace, byPay }: {
   job: RowJob; viewed: boolean; actions: JobActions; tab: string; onOpen: (job: RowJob) => void;
   /** The one level the search shows, which the row leaves out. */
   onlyStage?: Parameters<typeof rowFacts>[1];
+  /** The search shows one place, which the row leaves out. */
+  onlyPlace?: boolean;
+  /** Sorted by pay: the top of the range takes the age's slot. */
+  byPay?: boolean;
 }) {
+  const topPay = byPay ? rowTopPay(job) : undefined;
   const { menu } = rowActions(job, actions, viewed);
   const { leading, trailing } = swipeActions(job, actions, viewed, useSwipeChoices());
   const preview = useJobPreview(job, viewed ? undefined : () => onOpen(job));
@@ -321,7 +351,7 @@ export function FeedRow({ job, viewed, actions, tab, onOpen, onlyStage }: {
   // A flip of the switch changes what the native link wraps, and iOS then
   // draws the row blank. A new key builds the link afresh instead.
   const setup = zoom ? "zoom" : "none";
-  const row = <JobRow title={plainText(job.title)} company={plainText(job.company_name)} facts={rowFacts(job, onlyStage)} age={rowAge(job)}
+  const row = <JobRow title={plainText(job.title)} company={plainText(job.company_name)} facts={rowFacts(job, onlyStage, { onlyPlace, ageNotPay: Boolean(topPay) })} age={topPay ?? rowAge(job)} ageStrong={Boolean(topPay)}
         stage={job.applied ? "applied" : job.saved ? "saved" : undefined}
         unread={!viewed}
         logo={{ name: job.company_name, uri: logoUri(job.company_domain) }}
@@ -387,40 +417,83 @@ const stageLabel = (id: string) => CAREER_STAGE_OPTIONS.find((option) => option.
 
 /** One tap each: Remote, $100K+, and a chip per stage when the search covers
  * more than one. Everything else is in Edit search. */
+/** The feed's request here: `feedParams` plus asking the count to stop at its cap. */
+function listParams(...args: Parameters<typeof feedParams>) {
+  return { ...feedParams(...args), count_cap: "1" as const };
+}
+
+const PAY_FLOORS = [100, 150, 200] as const;
+/** More choices than this get a drawer rather than a system dropdown. */
+const MENU_CHOICES = 6;
+
+/**
+ * Level, Location and Pay, each opening its own choice from the chip (owner,
+ * 2026-11-09, Paper "Chips you choose, and a sort · Nov 9"). A picked chip
+ * fills in and shows the choice. Remote is Location's first option; Clear
+ * resets all three. Level picks one and so does Pay; Location picks several.
+ */
 function QuickFilters({ search, stages, defaults, ready }: { search: FeedSearch; stages: Parameters<typeof feedParams>[1]; defaults: Parameters<typeof feedParams>[2]; ready: boolean }) {
   const ahead = useMotionTrial("chipFade");
   const prefetch = usePrefetchFeed();
-  const shown = stages.length > 1 ? stages : [];
+  const [drawer, setDrawer] = useState(false);
+  const levels = stages.length > 1 ? [...stages].sort((a, b) => stageRank(a) - stageRank(b)) : [];
   const plain = !search.loc && search.min === undefined && !search.stage && !search.q;
-  // A chip's list takes the server about a second, so each one is fetched
-  // before it's tapped, one at a time, from the plain list only.
+  // A list takes the server a moment, so the likely ones are fetched before
+  // they're picked, one at a time, from the plain list only.
   useEffect(() => {
     if (!ahead || !ready || !plain) return;
     let stopped = false;
     const timer = setTimeout(() => {
       void (async () => {
-        const nexts: FeedSearch[] = [{ ...search, loc: "remote" }, { ...search, min: 100 }, ...shown.map((stage) => ({ ...search, stage }))];
+        const nexts: FeedSearch[] = [{ ...search, loc: "remote" }, ...levels.map((stage) => ({ ...search, stage })), ...PAY_FLOORS.map((min) => ({ ...search, min }))];
         for (const next of nexts) {
           if (stopped) return;
-          await prefetch(feedParams(next, stages, defaults)).catch(() => undefined);
+          await prefetch(listParams(next, stages, defaults)).catch(() => undefined);
         }
       })();
     }, 600);
     return () => { stopped = true; clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per list asked for
-  }, [ahead, ready, plain, shown.join(), defaults]);
-  const toggle = (key: "loc" | "min" | "stage", value: string | number) => {
+  }, [ahead, ready, plain, levels.join(), defaults]);
+
+  const update = (key: "stage" | "loc" | "min", value: string | number | undefined) => {
     const next: FeedSearch = { ...search };
-    if (next[key] === value) delete next[key];
+    if (value === undefined) delete next[key];
     else Object.assign(next, { [key]: value });
     setFeedSearch(next);
   };
-  return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-    <Chip label="Remote" selected={search.loc === "remote"} onPress={() => toggle("loc", "remote")} />
-    <Chip label="$100K+" selected={search.min === 100} onPress={() => toggle("min", 100)} />
-    {stages.length > 1 ? [...stages].sort((a, b) => stageRank(a) - stageRank(b)).map((stage) =>
-      <Chip key={stage} label={stageLabel(stage)} selected={search.stage === stage} onPress={() => toggle("stage", stage)} />) : null}
-  </ScrollView>;
+  const level = search.stage && !search.stage.includes(",") ? search.stage : undefined;
+  const chosen = search.loc && search.loc !== "all" ? search.loc.split(",") as FeedLocation[] : [];
+  const places: FeedLocation[] = ["remote", ...(defaults.some((id) => id !== "remote") ? defaults.filter((id) => id !== "remote") : LOCATION_OPTIONS.map((option) => option.id))];
+  const choosePlaces = (next: readonly FeedLocation[]) => update("loc", next.length > 0 ? next.join(",") : undefined);
+  const togglePlace = (id: FeedLocation) => choosePlaces(chosen.includes(id) ? chosen.filter((place) => place !== id) : [...chosen, id]);
+  const placeLabel = chosen.length === 0 ? "Location" : `${locationLabels[chosen[0]!]}${chosen.length > 1 ? ` +${chosen.length - 1}` : ""}`;
+  const picked = Boolean(level) || chosen.length > 0 || search.min !== undefined;
+  const clear = () => {
+    const { stage: _stage, loc: _loc, min: _min, ...rest } = search;
+    setFeedSearch(rest);
+  };
+  return <>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      {levels.length > 0 ? <Menu items={[
+        { id: "any", title: "Any", checked: !level, onSelect: () => update("stage", undefined) },
+        ...levels.map((stage): MenuItem => ({ id: stage, title: stageLabel(stage), checked: level === stage, onSelect: () => update("stage", stage) })),
+      ]}><ChipFace label={level ? stageLabel(level) : "Level"} selected={Boolean(level)} /></Menu> : null}
+      {places.length + 1 > MENU_CHOICES
+        ? <Chip caret label={placeLabel} selected={chosen.length > 0} onPress={() => setDrawer(true)} />
+        : <GlyphMenu keepOpen items={[
+          { id: "any", title: "Any", on: chosen.length === 0, onSelect: () => choosePlaces([]) },
+          ...places.map((id) => ({ id, title: locationLabels[id], on: chosen.includes(id), onSelect: () => togglePlace(id) })),
+        ]}><ChipFace label={placeLabel} selected={chosen.length > 0} /></GlyphMenu>}
+      <Menu items={[
+        { id: "any", title: "Any", checked: search.min === undefined, onSelect: () => update("min", undefined) },
+        ...PAY_FLOORS.map((min): MenuItem => ({ id: String(min), title: `$${min}K+`, checked: search.min === min, onSelect: () => update("min", min) })),
+      ]}><ChipFace label={search.min === undefined ? "Pay" : `$${search.min}K+`} selected={search.min !== undefined} /></Menu>
+      {picked ? <ChipAction label="Clear" onPress={clear} /> : null}
+    </ScrollView>
+    <LocationFilterSheet open={drawer} onClosed={() => setDrawer(false)} options={places} chosen={chosen}
+      onDone={(next) => { choosePlaces(next); setDrawer(false); }} />
+  </>;
 }
 
 const styles = StyleSheet.create((theme) => ({

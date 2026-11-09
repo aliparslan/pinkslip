@@ -906,6 +906,16 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   All 142) are `ink` Medium; pink stays for Needs you (owner, 2026-10-13).
   Chevrons are `ink-4`.
 - **Badge** (`Badge.tsx`): 20 tall, Footnote Medium, white on pink.
+- **Dropdown chips on Jobs** (owner, 2026-11-09, Paper "Chips you choose, and
+  a sort · Nov 9"): Level, Location and Pay, each with a down caret, in place
+  of chips you turn on and off. A picked chip fills in ink and shows its
+  value ("New grad", "Remote +1"). Plain "Clear" follows the chips once any is
+  picked, and clears all three, not the sort. Level and Pay are system
+  dropdowns, pick one. Location picks several: a system dropdown that stays
+  open up to six choices, the drawer past that. Remote is its first option.
+  The same words and caret on the first section's name are the sort, Newest
+  or Highest pay. Sorted by pay, the top of the range takes the age's slot
+  and the age moves to line two. A job in the one place picked leaves it out.
 - **Chips** (`Chip.tsx`): 32 tall, Subhead, 16 each side, outlined when
   off; a count is `ink-3` after a 6 gap. `tone="pink"` for chips that save
   to your search (Selection, above).
