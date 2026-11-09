@@ -905,11 +905,18 @@ describe("pollCompany with a location Jev has ruled on", () => {
     expect(stored()).toEqual([]);
   });
 
+  it("ignores even a confident yes until admission is turned on", async () => {
+    const { db, company, stored } = await setup({ choice: "yes", yes: 0.99 });
+    stub("Hybrid");
+    await pollCompany(company, db);
+    expect(stored()).toEqual([]);
+  });
+
   it("leaves it out on a no or an unsure yes", async () => {
     for (const answer of [{ choice: "no", yes: 0 }, { choice: "yes", yes: 0.5 }]) {
       const { db, company, stored } = await setup(answer);
       stub("Hybrid");
-      await pollCompany(company, db);
+      await pollCompany(company, db, [], { admitLocationRulings: true });
       expect(stored()).toEqual([]);
     }
   });
@@ -917,11 +924,11 @@ describe("pollCompany with a location Jev has ruled on", () => {
   it("admits it on a confident yes, and still honours a place the source names later", async () => {
     const { db, company, stored } = await setup({ choice: "yes", yes: 0.93 });
     stub("Hybrid");
-    await pollCompany(company, db);
+    await pollCompany(company, db, [], { admitLocationRulings: true });
     expect(stored()).toEqual([{ location: "Hybrid, United States", closed_at: null }]);
 
     stub("London, UK");
-    await pollCompany(company, db);
+    await pollCompany(company, db, [], { admitLocationRulings: true });
     const [row] = stored() as { location: string; closed_at: string | null }[];
     expect(row!.location).not.toBe("London, UK");
   });

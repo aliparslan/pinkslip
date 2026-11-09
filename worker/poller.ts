@@ -590,6 +590,8 @@ interface PollCompanyOptions {
   compactReturnMetadata?: boolean;
   fullBackfill?: boolean;
   recordDecisions?: (companyId: string, jobs: JobListing[], customTitles: readonly string[]) => Promise<void>;
+  /** Off until Jev is scored on postings that name only foreign places (docs/JOB_CLASSIFICATION.md). */
+  admitLocationRulings?: boolean;
 }
 
 export interface PollingSnapshot {
@@ -647,7 +649,9 @@ export async function pollCompany(
         options.fullBackfill ? "complete" : "discovery"
       )
     : { jobs: [], complete: false };
-  const fetchedSnapshot = applyLocationRulings(pollingSnapshot.jobs, await locationRulings(db, company.id));
+  const fetchedSnapshot = options.admitLocationRulings
+    ? applyLocationRulings(pollingSnapshot.jobs, await locationRulings(db, company.id))
+    : pollingSnapshot.jobs;
   await options.recordDecisions?.(company.id, fetchedSnapshot, customTitles);
   // A complete detail backfill proves which manifest rows were inspected. Read
   // the live manifest once more afterward: IDs added during the long crawl stay

@@ -48,6 +48,14 @@ reject them, and only the posting's text can settle it. The owner's reviews had
 Jev right 18 to 1 on US eligibility, while the rules beat it on job family and
 seniority, so this is the only question whose answer reaches users (2026-11-08).
 
+**Status: not admitting anything yet.** `pollCompany` applies rulings only with
+`admitLocationRulings`, which no caller sets. The 18 to 1 came from rows where Jev
+and the rules disagreed, and all 27 sampled answers on these locations were on
+postings open in the US, so Jev's "no" is unmeasured. A wrong yes would label a
+Bengaluru job "Hybrid, United States". Of the 84 postings it would be asked about
+on 2026-11-08, 61 are Cloudflare's, and 17 of those name only foreign cities.
+Score it against those before turning it on.
+
 - `isUnreadableLocation` decides what counts. A place named anywhere in the text
   ("Remote - EU", "Hybrid - Toronto") stays the filter's call.
 - A posting is queued as `location_ruling` only when the location is all that
