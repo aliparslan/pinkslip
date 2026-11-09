@@ -86,11 +86,35 @@ on a phone. With it on:
 Always on, switch or not: the Terms box is never ticked, and Workday is never
 submitted for the person. Save and Continue is theirs too.
 
+## First try on a phone (Nov 9)
+
+The owner's first try, at NVIDIA, didn't work. Replayed in the iOS web view:
+
+- NVIDIA opens on Sign in with Google, LinkedIn or email, and the app's bar
+  said "Open the application form to fill it", which is wrong there.
+- After tapping Google, the loop read Google's sign-in page and typed an email
+  into it. Pages on Google, LinkedIn, Apple and Microsoft sign-in hosts are now
+  left alone, and Workday's own sign-in and sign-up pages read as nothing to
+  fill. The bar says "Sign in to start filling".
+- Adobe's header has a language picker built like a question dropdown. Only
+  ids reading `section--field` count as questions now.
+- Sign-up has its own "I agree" box (`createAccountCheckbox`), never ticked.
+- eBay's careers site is named `apply`, which read as already being on the
+  application.
+
+**Adobe needs no account.** `/apply/applyManually` opens straight on the form.
+Run in the iOS web view on its live page with sample answers, without pressing
+Next: 9 of 16 filled, State picked from its dropdown, 2 left for the person.
+Salesforce goes to Create Account. Micron and KLA hadn't drawn anything after
+4.5 seconds in a desktop browser.
+
 ## Not proven yet
 
-- Any of it in the phone's web view on a real Workday page.
-- A real page change, since Save and Continue wasn't pressed for this test.
+- A real page change, since Save and Continue has never been pressed for a
+  test.
+- Filling on the owner's phone with real answers.
 - Question labels on Application Questions, which assume the same `aria-label`
   as page 1's dropdowns, with a fallback to nearby text.
 - Whether Workday's confirmation page registers as applied.
-- Whether Google sign-in works in the app's web view. Email sign-in should.
+- Whether Google sign-in works in the app's web view. It shows its page, but
+  nobody has finished one. Email sign-in should.

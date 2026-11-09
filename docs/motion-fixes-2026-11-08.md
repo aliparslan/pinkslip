@@ -168,3 +168,33 @@ A chip is used tens of times a day, so nothing moves:
 
 Timings were recorded on a development bundle. Its JS is several times slower
 than a published one, so the empty moment mid-swap looked longest there.
+
+## Light and dark, and chips, reworked (Nov 9)
+
+The owner: the theme change flashes the whole screen, and chips are slow.
+Recorded frame by frame in the simulator.
+
+**Light and dark.**
+
+- iOS's own change (Reminders, `simctl ui appearance`) is an even ramp of the
+  page's brightness over about 370ms, with both screens showing through.
+- Ours jumped to the solid new color in about 70ms, then stayed blank until
+  the app had redrawn. That's the flash.
+- Now the curtain is the page's current color. The content dissolves into it,
+  so nothing jumps, and it lifts in a straight 350ms, so the page ramps as iOS's
+  does.
+- Left: about 0.4s of empty page while the app redraws (recorded in a
+  production bundle). RootLayout and the navigation theme re-render everything
+  mounted. Only a snapshot of the screen removes that, and that needs a small
+  native module and a TestFlight build.
+
+**Chips.**
+
+- A first tap took about 1.6s in a debug build: 930ms waiting on the server,
+  then a 90ms fade out, 200ms blank and 300ms fade in.
+- Now the rows dim in 90ms, the new ones replace them while dim, and they come
+  up in 130ms. Never blank.
+- From the plain list, each chip's first page is fetched ahead, one at a time.
+  A tap on one of those took about 340ms from touch to settled, in a production
+  bundle. Combinations of chips aren't fetched ahead.
+
