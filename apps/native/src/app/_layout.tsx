@@ -31,7 +31,6 @@ export default function RootLayout() {
     <ThemeProvider value={navigationTheme}><AppProviders>
       <Stack screenOptions={stackOptions(theme)}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="welcome" options={{ headerShown: false, presentation: "fullScreenModal", gestureEnabled: false }} />
         <Stack.Screen name="auth/email/verify" options={{ title: "Signing in", presentation: "formSheet", sheetAllowedDetents: [0.4] }} />
         <Stack.Screen name="support/thanks" options={{ headerShown: false, animation: "none" }} />
       </Stack>

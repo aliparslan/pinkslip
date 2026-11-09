@@ -55,18 +55,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>NSBonjourServices</key>
-	<array>
-		<string>_expo._tcp</string>
-	</array>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Pinkslip adds your interviews to your calendar.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>Pinkslip adds your interviews to your calendar.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Pinkslip doesn't use your reminders.</string>
 	<key>NSRemindersUsageDescription</key>
@@ -113,7 +105,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
 	<key>UIUserInterfaceStyle</key>
 	<string>Automatic</string>
