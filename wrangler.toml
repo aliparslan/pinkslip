@@ -121,6 +121,9 @@ JOB_CLASSIFICATION_SHADOW = "true"
 AI_MONTHLY_BUDGET_USD = "10"
 # Production's values, set in the dashboard before they were kept here.
 JEV_DAILY_CALL_LIMIT = "100"
+# A confident Jev yes admits a posting whose location no filter can read
+# ("Hybrid", "Americas"). Scored before turning on: docs/JOB_CLASSIFICATION.md.
+JEV_LOCATION_RULINGS = "true"
 JOB_CLASSIFICATION_AUDIT = "true"
 # Recruiter outreach for admins only, addressed to the recruiters on People.
 # A value in OUTREACH_TEST_RECIPIENT stands in for every recruiter's address,

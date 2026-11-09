@@ -43,6 +43,8 @@ export interface Env {
   JOB_CLASSIFICATION_SHADOW?: string;
   /** Lower the hard ceiling of 100 provider calls per UTC day; 0 pauses calls. */
   JEV_DAILY_CALL_LIMIT?: string;
+  /** "true" lets a confident Jev yes admit a posting whose location no filter can read. */
+  JEV_LOCATION_RULINGS?: string;
   /** Calendar-month cap on paid model calls, in USD. Defaults to 10. */
   AI_MONTHLY_BUDGET_USD?: string;
   // APNs (native iOS push). Set APNS_KEY_ID/TEAM_ID/BUNDLE_ID as vars and

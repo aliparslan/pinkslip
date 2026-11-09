@@ -1446,6 +1446,7 @@ export async function runPollCycle(
     (company) => pollCompany(company, db, customTitles, {
       compactReturnMetadata: true,
       recordDecisions,
+      admitLocationRulings: env.JEV_LOCATION_RULINGS === "true",
     })
   );
 

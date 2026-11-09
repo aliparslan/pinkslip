@@ -349,6 +349,25 @@ describe("pollQueuedSource", () => {
     });
   });
 
+  it("lets Jev's location rulings admit a job only when the setting is on", async () => {
+    for (const [setting, expected] of [["true", true], [undefined, false], ["false", false]] as const) {
+      const { sqlite, db } = pollingDb();
+      addCompany(sqlite, "a", { lastPolledAt: minutesAgo(15), claimedAt: NOW.toISOString() });
+      const calls = { notified: [] as number[], quarantineAlerts: [] as string[] };
+      let admitted: boolean | undefined;
+      await pollQueuedSource(
+        { DB: db, QUEUE_POLLING_TIERS: "1", JEV_LOCATION_RULINGS: setting } as Env,
+        { companyId: "a", tier: 1, claimedAt: NOW.toISOString() },
+        dependencies(async (_company, _db, _titles, options) => {
+          admitted = options?.admitLocationRulings;
+          return [];
+        }, calls),
+        clock()
+      );
+      expect(admitted).toBe(expected);
+    }
+  });
+
   it("records adapter failures through quarantine instead of retrying the message", async () => {
     const { sqlite, db } = pollingDb();
     addCompany(sqlite, "a", {

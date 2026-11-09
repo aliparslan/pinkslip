@@ -48,11 +48,11 @@ reject them, and only the posting's text can settle it. The owner's reviews had
 Jev right 18 to 1 on US eligibility, while the rules beat it on job family and
 seniority, so this is the only question whose answer reaches users (2026-11-08).
 
-**Status: not admitting anything yet.** `pollCompany` applies rulings only with
-`admitLocationRulings`, which no caller sets. The 18 to 1 came from rows where Jev
-and the rules disagreed, and all 27 sampled answers on these locations were on
-postings open in the US, so Jev's "no" was unmeasured. A wrong yes would label a
-Bengaluru job "Hybrid, United States".
+**Status: on since 2026-11-09**, after the eval below, set by
+`JEV_LOCATION_RULINGS=true` in `wrangler.toml`. The 18 to 1 came from rows where Jev
+and the rules disagreed, and all 27 earlier answers on these locations were on
+postings open in the US, so Jev's "no" hadn't been measured. A wrong yes would label
+a Bengaluru job "Hybrid, United States".
 
 **Eval, 2026-11-09.** Jev answered the 84 postings it would be asked about, with
 admission off, against an answer key fixed from each posting's own text beforehand.
@@ -82,8 +82,8 @@ as about 13%. The key for the 23 non-Cloudflare postings is a reading of their t
 - Sources without descriptions in their listings can't be asked. Today's unreadable
   locations are nearly all on Greenhouse and Ashby, which include them.
 
-To turn this off, revert the change: jobs it admitted fail the filter and close as
-absent on their next polls.
+To turn this off, set `JEV_LOCATION_RULINGS` to anything else and deploy: jobs it
+admitted fail the filter and close as absent on their next polls.
 
 ## Limits and cache
 

@@ -241,6 +241,7 @@ export async function pollQueuedSource(
   const result = await dependencies.poll(company, db, customTitles, {
     compactReturnMetadata: true,
     recordDecisions,
+    admitLocationRulings: env.JEV_LOCATION_RULINGS === "true",
   }).then(
     (value): PromiseSettledResult<Awaited<ReturnType<typeof pollCompany>>> =>
       ({ status: "fulfilled", value }),

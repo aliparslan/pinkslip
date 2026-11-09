@@ -364,7 +364,10 @@ companies.post("/:id/poll", requireAdmin, async (c) => {
   const now = new Date().toISOString();
   try {
     const customTitles = await loadCustomTitles(db);
-    const newJobs = await pollCompany(company, db, customTitles, { fullBackfill });
+    const newJobs = await pollCompany(company, db, customTitles, {
+      fullBackfill,
+      admitLocationRulings: c.env.JEV_LOCATION_RULINGS === "true",
+    });
     const notificationsSent = await indexManualPollJobs(
       db,
       c.env,
