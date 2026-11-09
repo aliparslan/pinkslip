@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { submitForm } from "../apps/native/autofill/form-filler";
+import { SUBMIT_FORM_BODY } from "../apps/native/src/platform/autofill/scripts.generated";
+
+const AsyncFunction = Object.getPrototypeOf(async () => undefined).constructor as new (body: string) => () => Promise<string>;
+/** Runs the script exactly as it goes to the page. */
+const submitForm = async () => JSON.parse(await new AsyncFunction(SUBMIT_FORM_BODY)()) as { status: string; errors: string[] };
 
 const BFRAME = "https://www.recaptcha.net/recaptcha/enterprise/bframe?hl=en";
 const SUCCESS = ".ashby-application-form-success-container";
