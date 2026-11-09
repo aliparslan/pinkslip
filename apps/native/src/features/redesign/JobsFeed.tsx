@@ -304,21 +304,19 @@ export function FeedRow({ job, viewed, actions, tab, onOpen, onlyStage }: {
   const preview = useJobPreview(job, viewed ? undefined : () => onOpen(job));
   // The page grows out of the row (Paper "Signature moments · Nov 8", 1).
   const zoom = useMotionTrial("zoom");
-  // Kit: off is Expo's own zoom, as rows had before alerts could use one.
-  const named = useMotionTrial("rowZoomIds");
   const zoomId = rowZoomId(tab, job.id);
-  // A flip of either switch changes what the native link wraps, and iOS then
+  // A flip of the switch changes what the native link wraps, and iOS then
   // draws the row blank. A new key builds the link afresh instead.
-  const setup = !zoom ? "none" : named ? "named" : "expo";
+  const setup = zoom ? "zoom" : "none";
   const row = <JobRow title={plainText(job.title)} company={plainText(job.company_name)} facts={rowFacts(job, onlyStage)} age={rowAge(job)}
         stage={job.applied ? "applied" : job.saved ? "saved" : undefined}
         unread={!viewed}
         logo={{ name: job.company_name, uri: logoUri(job.company_domain) }}
         actions={menu.map((item) => ({ id: item.id, label: item.title, run: item.onSelect }))} />;
   return <SwipeRow id={job.id} leading={leading} trailing={trailing}>
-    <Link key={setup} href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id, ...(zoom && named ? zoomParams(zoomId) : {}) } }} asChild onPress={() => onOpen(job)}>
-      <Link.Trigger withAppleZoom={zoom && !named}>
-        {zoom && named ? <RowZoom id={zoomId}>{row}</RowZoom> : row}
+    <Link key={setup} href={{ pathname: `/(tabs)/${tab}/jobs/[jobId]` as "/(tabs)/(jobs)/jobs/[jobId]", params: { jobId: job.id, ...(zoom ? zoomParams(zoomId) : {}) } }} asChild onPress={() => onOpen(job)}>
+      <Link.Trigger>
+        {zoom ? <RowZoom id={zoomId}>{row}</RowZoom> : row}
       </Link.Trigger>
       <Link.Preview style={preview.style}>{preview.content}</Link.Preview>
       <Link.Menu>

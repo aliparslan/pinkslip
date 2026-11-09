@@ -14,7 +14,7 @@ import { storage } from "../platform/storage";
  * (docs/next-five-round-2026-11-08.md).
  */
 export type MotionTrial = "undo" | "sheetFade" | "wheel" | "trackerLoad" | "pdfSettle"
-  | "zoom" | "stampBar" | "stampOffer" | "trackerMove" | "jobsArrive" | "todayZoom" | "rowZoomIds";
+  | "zoom" | "stampBar" | "stampOffer" | "trackerMove" | "jobsArrive" | "todayZoom";
 
 export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; proposed: string }[] = [
   { id: "undo", title: "Undo brings the job back", today: "It appears in one frame", proposed: "Hide played backwards" },
@@ -28,8 +28,6 @@ export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; pro
   { id: "trackerMove", title: "A row changes stage", today: "It jumps when the server answers", proposed: "It moves at once, in place" },
   { id: "jobsArrive", title: "New postings arrive", today: "They appear at once", proposed: "The rows make room and uncover them" },
   { id: "todayZoom", title: "Today's rows", today: "They slide in", proposed: "They zoom out of the row" },
-  // To feel whether naming each row for alerts changed an early swipe back.
-  { id: "rowZoomIds", title: "Zoom, new setup", today: "The setup before alerts could zoom", proposed: "Off is how it worked before" },
 ];
 
 const key = (id: MotionTrial) => `kit-motion-${id}`;
