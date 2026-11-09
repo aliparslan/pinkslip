@@ -18,12 +18,13 @@ export interface IconTileProps {
  * the app. */
 export function IconTile({ icon, meaning, weight }: IconTileProps) {
   const { theme } = useUnistyles();
-  const color = theme.ui.color;
-  return <View style={[styles.tile, { backgroundColor: color[`tile-${meaning}`] }]}>
-    <Icon name={icon} size={18} color={color[`tile-${meaning}-ink`]} weight={weight} />
+  return <View style={[styles.tile, styles.tint(meaning)]}>
+    <Icon name={icon} size={18} color={theme.ui.color[`tile-${meaning}-ink`]} weight={weight} />
   </View>;
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create((theme) => ({
   tile: { width: 28, height: 28, borderRadius: 7, borderCurve: "continuous", alignItems: "center", justifyContent: "center" },
-});
+  // In the sheet, so it changes with the page rather than after a redraw.
+  tint: (meaning: TileMeaning) => ({ backgroundColor: theme.ui.color[`tile-${meaning}`] }),
+}));

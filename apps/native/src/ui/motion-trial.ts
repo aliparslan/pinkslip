@@ -33,14 +33,14 @@ export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; pro
   // the page's title landed a row too low, over the next row's text).
   { id: "zoomLanding", title: "Zoom lands on the title", today: "The page's top lands on the row", proposed: "Its logo and title land on the row's" },
   // The owner asked for these two to be reviewed and workshopped (Nov 8).
-  { id: "themeFade", title: "Light and dark", today: "It cuts, and parts catch up late", proposed: "The page ramps to the new color" },
+  { id: "themeFade", title: "Light and dark", today: "It changes at once", proposed: "A curtain, then the page ramps" },
   { id: "chipFade", title: "A chip changes the list", today: "The rows cut over, late on Jobs", proposed: "Rows dim, the new ones come up" },
   { id: "chipSlide", title: "A chip slides the rows", today: "Rows dim and come up", proposed: "Rows that stay slide, the rest fade" },
 ];
 
 const key = (id: MotionTrial) => `kit-motion-${id}`;
 /** Still being judged: off until switched on here, unlike the rest. */
-const OFF_UNTIL_ON: ReadonlySet<MotionTrial> = new Set(["chipSlide"]);
+const OFF_UNTIL_ON: ReadonlySet<MotionTrial> = new Set(["chipSlide", "themeFade"]);
 const listeners = new Set<() => void>();
 const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
 

@@ -1,9 +1,10 @@
-import { useSyncExternalStore } from "react";
+import { setStatusBarStyle } from "expo-status-bar";
+import { useDeferredValue, useSyncExternalStore } from "react";
 import { AccessibilityInfo, Appearance } from "react-native";
-import { UnistylesRuntime } from "react-native-unistyles";
+import { UnistylesRuntime, useUnistyles } from "react-native-unistyles";
 import { storage } from "../platform/storage";
 import { motionTrial } from "../ui/motion-trial";
-import type { ThemeName } from "./themes";
+import { themes, type AppTheme, type ThemeName } from "./themes";
 
 /** "system" follows iOS; the others pin the app (You → Appearance). */
 export type AppearancePreference = "system" | "light" | "dark";
@@ -37,7 +38,11 @@ function notify() {
 
 function apply() {
   const next = themeFor();
-  if (UnistylesRuntime.themeName !== next) UnistylesRuntime.setTheme(next);
+  if (UnistylesRuntime.themeName !== next) {
+    UnistylesRuntime.setTheme(next);
+    // Its component would wait for the app to redraw.
+    setStatusBarStyle(next.startsWith("light") ? "dark" : "light");
+  }
   // Native chrome (sheets, menus, the keyboard) follows the pinned scheme too.
   const preference = appearancePreference();
   Appearance.setColorScheme(preference === "system" ? "unspecified" : preference);
@@ -57,6 +62,16 @@ export function setAppearancePreference(preference: AppearancePreference) {
 
 export function useAppearancePreference(): AppearancePreference {
   return useSyncExternalStore((listener) => { listeners.add(listener); return () => listeners.delete(listener); }, appearancePreference);
+}
+
+/** The theme for navigators, which re-render everything under them. It lands
+ * a moment after a change, so the colors on screen don't wait for it. */
+export function useNavigatorTheme(): AppTheme {
+  // Read so this follows a change (Unistyles tracks what's read); the name is
+  // the one stable value to defer.
+  const { theme } = useUnistyles();
+  const name = useDeferredValue(theme.ui.color.bg ? UnistylesRuntime.themeName as ThemeName : "light");
+  return themes[name];
 }
 
 /** Starts following system appearance and contrast changes. Called once. */

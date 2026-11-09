@@ -1,7 +1,8 @@
 import type { UiTypeRole } from "@pinkslip/tokens/types";
 import type { ReactNode } from "react";
 import { Text as RNText, type TextProps as RNTextProps } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { ui } from "@pinkslip/tokens/native";
+import { StyleSheet } from "react-native-unistyles";
 import { face } from "./fonts";
 
 export type TextRole = UiTypeRole;
@@ -37,8 +38,9 @@ export interface TextProps extends Pick<RNTextProps, "accessibilityRole" | "acce
  * as UIKit's labels do (no word left alone on the last line), and curls
  * apostrophes. */
 export function Text({ role = "body", tone = "ink", weight = "regular", lines, align, flex, children, ...rest }: TextProps) {
-  const { theme } = useUnistyles();
-  const type = theme.ui.type[role];
+  // From the tokens, not the theme: sizes are the same in every theme, and
+  // reading the theme re-rendered every text in the app on a change.
+  const type = ui.type[role];
   const display = type.face === "display";
   // Each role's face (ui/fonts.ts: SF for now); tab labels are always the system font.
   const { fontFamily: family, fontWeight } = type.face === "system"

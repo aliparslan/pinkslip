@@ -83,14 +83,19 @@ const transitions = new Map<string, Transition>();
  * launched by a notification while the app moved to Today left the bar
  * following the wrong tab, and hidden: owner, Nov 8). */
 const TabName = createContext<string | null>(null);
-const stackLayouts = new Map<string, (props: { route: { key: string }; children: React.ReactElement }) => React.ReactElement>();
+const stackLayouts = new Map<string, (props: { route: { key: string }; options: { presentation?: string }; children: React.ReactElement }) => React.ReactElement>();
 
 /** A tab's `screenLayout` for its stack: the screen, told which tab it's
  * in, and a note of its transition for the bar. */
 export function tabStackScreenLayout(tab: string) {
   let layout = stackLayouts.get(tab);
   if (!layout) {
-    layout = ({ route, children }) => <TabName.Provider value={tab}>{children}<TransitionSource routeKey={route.key} /></TabName.Provider>;
+    layout = ({ route, options, children }) => {
+      const screen = <TabName.Provider value={tab}>{children}<TransitionSource routeKey={route.key} /></TabName.Provider>;
+      // The page's color, from the sheet: the stack's own `contentStyle` waits
+      // for a redraw, so a theme change left it behind. A sheet stays clear.
+      return options.presentation && options.presentation !== "card" ? screen : <View style={styles.page}>{screen}</View>;
+    };
     stackLayouts.set(tab, layout);
   }
   return layout;
@@ -613,6 +618,7 @@ function slotX(index: number) {
 }
 
 const styles = StyleSheet.create((theme) => ({
+  page: { flex: 1, backgroundColor: theme.ui.color.bg },
   // It clips what a page arriving over it covers (see followStyles).
   bar: { position: "absolute", left: 0, right: 0, bottom: 0, overflow: "hidden" },
   above: { position: "absolute", left: theme.ui.size.gutter, right: theme.ui.size.gutter },

@@ -4,7 +4,6 @@ import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { motion } from "./motion";
 
@@ -18,26 +17,21 @@ export function Floating({ style, children }: { style?: StyleProp<ViewStyle>; ch
   return <GlassView glassEffectStyle="regular" isInteractive style={[styles.root, style, !GLASS && styles.paper]}>{children}</GlassView>;
 }
 
+/** Fine enough to read as a gradient over the bar's short tail. */
+const FADE_STEPS = Array.from({ length: 24 }, (_, step) => step);
+
 /** The page's own colour fading out over the top `height` points, under a
  * floating bar: what scrolls up there fades away instead of running under
  * the clock and the buttons. Solid through the status bar, or down to
  * `solidTo` points. */
 export function TopEdgeFade({ height, solidTo }: { height: number; solidTo?: number }) {
-  const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
-  const solid = Math.min(1, (solidTo ?? insets.top) / height);
-  const page = theme.ui.color.bg;
+  const solid = Math.min(height, solidTo ?? insets.top);
+  // Layers of the sheet's color, not a drawn gradient: a theme change reaches
+  // the sheet at once, and a gradient's colors only after a redraw.
   return <View pointerEvents="none" style={[styles.fade, { height }]}>
-    <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 1 1">
-      <Defs>
-        <LinearGradient id="top-edge" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={page} stopOpacity={1} />
-          <Stop offset={solid} stopColor={page} stopOpacity={1} />
-          <Stop offset="1" stopColor={page} stopOpacity={0} />
-        </LinearGradient>
-      </Defs>
-      <Rect x="0" y="0" width="1" height="1" fill="url(#top-edge)" />
-    </Svg>
+    <View style={[styles.page, { height: solid }]} />
+    {FADE_STEPS.map((step) => <View key={step} style={[styles.page, { height: (height - solid) / FADE_STEPS.length, opacity: 1 - (step + 0.5) / FADE_STEPS.length }]} />)}
   </View>;
 }
 
@@ -114,5 +108,6 @@ const styles = StyleSheet.create((theme) => ({
   root: { borderRadius: theme.ui.radius.full, overflow: "hidden" },
   paper: { backgroundColor: theme.ui.color["bg-elev"], boxShadow: theme.ui.shadow.pill, overflow: "visible" },
   fade: { position: "absolute", top: 0, left: 0, right: 0 },
+  page: { backgroundColor: theme.ui.color.bg },
   blur: { position: "absolute", top: -BLUR_BLEED, left: -BLUR_BLEED, right: -BLUR_BLEED },
 }));

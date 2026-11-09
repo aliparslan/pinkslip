@@ -424,7 +424,9 @@ function QuickFilters({ search, stages, defaults, ready }: { search: FeedSearch;
 }
 
 const styles = StyleSheet.create((theme) => ({
-  fill: { flex: 1, backgroundColor: theme.ui.color.bg },
+  // No color of its own: a list can't take the sheet's change at once, and
+  // the tab's page color is right behind it.
+  fill: { flex: 1 },
   chips: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["2"], paddingBottom: theme.ui.space["2"] },
   stale: {
     flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"],
