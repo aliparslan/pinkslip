@@ -102,6 +102,9 @@ candidate, not as one more TestFlight build:
 
 - [x] The app draws in the system font (6eaf446, 2026-11-04). The redesign
   used the Klim trial cuts, which can't ship in a store build.
+- [ ] Once every app in use has the Google sign-in update (a production update,
+  or this build), set `GOOGLE_HANDOFF_REQUIRED` to `true` in
+  `worker/routes/auth.ts` and deploy.
 - [ ] Bump to 1.4.0 everywhere `apps/native/README.md` lists, and run
   `bun test tests/native-release.test.ts`. Do this when cutting the
   candidate, not before: until then, updates for testers still go to 1.3.9.
