@@ -916,6 +916,11 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   The same words and caret on the first section's name are the sort, Newest
   or Highest pay. Sorted by pay, the top of the range takes the age's slot
   and the age moves to line two. A job in the one place picked leaves it out.
+  When a chip's words change it grows or shrinks on `motion.list.move` and
+  pushes the chips beside it; the fill comes up over `motion.list.fade` and the
+  old words leave before the new ones show (`DropdownChip`; Kit: A picked chip
+  grows). The tap is a clear layer inside the system menu, at the chip's final
+  size, because a menu's hosted trigger can't follow a width moving every frame.
 - **Chips** (`Chip.tsx`): 32 tall, Subhead, 16 each side, outlined when
   off; a count is `ink-3` after a 6 gap. `tone="pink"` for chips that save
   to your search (Selection, above).

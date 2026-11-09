@@ -10,7 +10,7 @@ import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Menu, usePullToRefresh, type MenuItem } from "../../kit";
 import {
-  changedKeys, Chip, ChipAction, ChipFace, closeOpenSwipeRow, EmptyState, GlyphMenu, glyphMenuAction, Icon, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useListMotion, useRowsSwap, useTabBarScroll, useTabBarSpace, useTopEdge,
+  changedKeys, ChipAction, closeOpenSwipeRow, DropdownChip, EmptyState, GlyphMenu, glyphMenuAction, Icon, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useListMotion, useRowsSwap, useTabBarScroll, useTabBarSpace, useTopEdge,
   type GlyphMenuItem, type MenuGlyph, type SwipeAction, LastInSection } from "../../ui";
 import { useMotionTrial } from "../../ui/motion-trial";
 import { useFeedCriteria } from "../feed/Feed";
@@ -475,20 +475,20 @@ function QuickFilters({ search, stages, defaults, ready }: { search: FeedSearch;
   };
   return <>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-      {levels.length > 0 ? <Menu items={[
+      {levels.length > 0 ? <DropdownChip label={level ? stageLabel(level) : "Level"} selected={Boolean(level)} menu={(trigger) => <Menu items={[
         { id: "any", title: "Any", checked: !level, onSelect: () => update("stage", undefined) },
         ...levels.map((stage): MenuItem => ({ id: stage, title: stageLabel(stage), checked: level === stage, onSelect: () => update("stage", stage) })),
-      ]}><ChipFace label={level ? stageLabel(level) : "Level"} selected={Boolean(level)} /></Menu> : null}
+      ]}>{trigger}</Menu>} /> : null}
       {places.length + 1 > MENU_CHOICES
-        ? <Chip caret label={placeLabel} selected={chosen.length > 0} onPress={() => setDrawer(true)} />
-        : <GlyphMenu keepOpen items={[
+        ? <DropdownChip label={placeLabel} selected={chosen.length > 0} onPress={() => setDrawer(true)} />
+        : <DropdownChip label={placeLabel} selected={chosen.length > 0} menu={(trigger) => <GlyphMenu keepOpen items={[
           { id: "any", title: "Any", on: chosen.length === 0, onSelect: () => choosePlaces([]) },
           ...places.map((id) => ({ id, title: locationLabels[id], on: chosen.includes(id), onSelect: () => togglePlace(id) })),
-        ]}><ChipFace label={placeLabel} selected={chosen.length > 0} /></GlyphMenu>}
-      <Menu items={[
+        ]}>{trigger}</GlyphMenu>} />}
+      <DropdownChip label={search.min === undefined ? "Pay" : `$${search.min}K+`} selected={search.min !== undefined} menu={(trigger) => <Menu items={[
         { id: "any", title: "Any", checked: search.min === undefined, onSelect: () => update("min", undefined) },
         ...PAY_FLOORS.map((min): MenuItem => ({ id: String(min), title: `$${min}K+`, checked: search.min === min, onSelect: () => update("min", min) })),
-      ]}><ChipFace label={search.min === undefined ? "Pay" : `$${search.min}K+`} selected={search.min !== undefined} /></Menu>
+      ]}>{trigger}</Menu>} />
       {picked ? <ChipAction label="Clear" onPress={clear} /> : null}
     </ScrollView>
     <LocationFilterSheet open={drawer} onClosed={() => setDrawer(false)} options={places} chosen={chosen}
