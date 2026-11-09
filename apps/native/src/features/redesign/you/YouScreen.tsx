@@ -4,14 +4,14 @@ import Constants from "expo-constants";
 import { router, Stack, type Href } from "expo-router";
 import * as Updates from "expo-updates";
 import { useState } from "react";
-import { Linking, Pressable, ScrollView, View } from "react-native";
+import { Linking, Pressable, ScrollView, Text as RNText, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { Menu, PressableScale } from "../../../kit";
+import { Menu } from "../../../kit";
 import { deviceRegion } from "../../../platform/region";
 import { useLocalResumeFile } from "../../../platform/resume-file";
 import { setAppearancePreference, useAppearancePreference, type AppearancePreference } from "../../../theme/appearance";
-import { Face, Icon, IconTile, ListGroup, ListItem, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../../ui";
+import { face, Icon, IconTile, ListGroup, ListItem, Text, toast, TopEdgeBlur, useTabBarScroll, useTabBarSpace, useTopEdge } from "../../../ui";
 import { openSignIn } from "../../account/sign-in-request";
 import { useDevicePush } from "../../alerts/Alerts";
 import { autoApplyValue } from "../apply-flow/auto-apply-facts";
@@ -22,14 +22,13 @@ import { tailoringShown } from "../../tailoring/shown";
 import { redesignKitAvailable } from "../flag";
 import { latestReleaseVersion } from "../whats-new";
 import { stageSummary } from "../search-draft";
-import { faceOwner, useFace } from "./face";
 import { SupportSheet } from "./SupportSheet";
 import { swipeChoiceLabel } from "./SwipeActionsPage";
 import { useSwipeChoices } from "../../jobs/swipe-choices";
 
 /** The rows that open something. "search" opens the Your search sheet and
  * "support" Support Pinkslip's. */
-export type YouDestination = "account" | "face" | "search" | "email" | "alerts" | "resume" | "answers" | "outreach" | "tailoring" | "plan" | "autoApply" | "swipes" | "help" | "whatsNew" | "support" | "admin" | "kit";
+export type YouDestination = "account" | "search" | "email" | "alerts" | "resume" | "answers" | "outreach" | "tailoring" | "plan" | "autoApply" | "swipes" | "help" | "whatsNew" | "support" | "admin" | "kit";
 
 export interface YouViewProps {
   /** Null for a guest. */
@@ -69,7 +68,7 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
       <View style={styles.nav} />
       <Text role="largeTitle" accessibilityRole="header">You</Text>
     </View>
-    <PersonCard person={person} onPress={() => open("account")} onFace={() => open("face")} />
+    <PersonCard person={person} onPress={() => open("account")} />
     {/* Admin and Kit come first for the people who have them (owner, 2026-10-14). */}
     {show.admin || show.kit ? <ListGroup surface="fill" inset="leading">
       {show.admin ? <ListItem leading={<IconTile icon="admin" meaning="app" />} title="Admin" accessory="chevron" onPress={() => open("admin")} /> : null}
@@ -133,11 +132,14 @@ export function YouView({ person, values, appearance, onAppearance, show, open }
 }
 
 /** Your name and email on a gray card; it opens Account. */
-function PersonCard({ person, onPress, onFace }: { person: YouViewProps["person"]; onPress: () => void; onFace: () => void }) {
+function PersonCard({ person, onPress }: { person: YouViewProps["person"]; onPress: () => void }) {
+  const initials = person ? initialsOf(person.name || person.email || "") : "";
   return <View style={styles.cardSlot}>
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={person ? `Account, ${person.name || person.email}` : "Account, sign in"}
       style={({ pressed }) => [styles.person, pressed && styles.pressed]}>
-      {person ? <PersonFace person={person} onPress={onFace} /> : <View style={styles.avatar}><Icon name="you" size={26} tone="ink-3" /></View>}
+      <View style={styles.avatar}>
+        {initials ? <RNText style={styles.initials} maxFontSizeMultiplier={1.4}>{initials}</RNText> : <Icon name="you" size={26} tone="ink-3" />}
+      </View>
       <View style={styles.personText}>
         <Text weight="medium" lines={1}>{person ? person.name || person.email : "Guest"}</Text>
         <Text role="subhead" tone="ink-2" lines={1}>{person ? (person.name ? person.email : null) ?? "Signed in" : "Sign in to keep your saves"}</Text>
@@ -147,12 +149,9 @@ function PersonCard({ person, onPress, onFace }: { person: YouViewProps["person"
   </View>;
 }
 
-/** Your face; a tap goes to choosing it, the rest of the card to Account. */
-function PersonFace({ person, onPress }: { person: NonNullable<YouViewProps["person"]>; onPress: () => void }) {
-  const spec = useFace(faceOwner(person.email, person.name));
-  return <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel="Your face">
-    <Face spec={spec} size={56} />
-  </PressableScale>;
+function initialsOf(name: string): string {
+  const words = name.replace(/@.*/, "").split(/[\s._-]+/).filter(Boolean);
+  return words.slice(0, 2).map((word) => word[0]?.toUpperCase() ?? "").join("");
 }
 
 /** You on the live account. */
@@ -185,7 +184,7 @@ export function YouScreen() {
   const resumeReady = Boolean(resumeData?.contact.name || resumeData?.experience.length || resumeData?.education.length || resumeData?.projects.length);
   const go = (href: Href) => router.push(href);
   const destinations: Record<Exclude<YouDestination, "search" | "support">, Href> = {
-    account: "/you/account", face: "/you/face", email: "/you/email", alerts: "/you/alerts", resume: "/you/resume", answers: "/you/answers",
+    account: "/you/account", email: "/you/email", alerts: "/you/alerts", resume: "/you/resume", answers: "/you/answers",
     outreach: "/you/outreach", tailoring: "/you/tailoring", plan: "/you/plan", autoApply: "/you/auto-apply", swipes: "/you/swipes", help: "/you/feedback", whatsNew: "/you/whats-new",
     admin: "/you/admin", kit: __DEV__ ? "/you/kit" : "/you/kit-redesign",
   };
@@ -253,6 +252,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   pressed: { backgroundColor: theme.ui.color.fill },
   avatar: { width: 56, height: 56, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color.bg, alignItems: "center", justifyContent: "center" },
+  initials: { ...face.display, fontSize: 22, lineHeight: 26, color: theme.ui.color["ink-2"] },
   personText: { flex: 1, minWidth: 0, gap: 2 },
   version: { paddingBottom: theme.ui.space["2"] },
 }));
