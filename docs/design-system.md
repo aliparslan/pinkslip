@@ -251,6 +251,15 @@ on one line share a size.
   Offer; endings are gray.
 - **Applied:** the torn stub (a paper object), not a checkmark.
 
+## Faces
+
+A person's picture is a face they build (owner, 2026-11-08; Paper "Build your
+face"): ink features on a soft circle, drawn by `Face` from the options in
+`ui/face-parts.ts`. It starts as a plain face seeded from the account, a tap
+on You's card opens the picker, and it's kept on this phone for now. Every
+part stays inside the circle. Hair, hats and beards wait until their drawing
+is settled. A company's or a recruiter's picture is still a logo or initials.
+
 ## Icons
 
 - **One set everywhere:** Phosphor, on iOS and the web

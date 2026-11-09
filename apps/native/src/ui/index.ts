@@ -8,6 +8,8 @@ export { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
 export { CopyField, CopyGlyph, useCopy, type CopyFieldProps } from "./CopyField";
 export { DateTile, EmptyDateTile, type DateTileProps } from "./DateTile";
 export { EMPTY_TOP, EmptyState, type EmptyStateProps } from "./EmptyState";
+export { Face } from "./Face";
+export { FACE_PARTS, faceFromSeed, faceOptionLabel, parseFace, randomFace, type FacePart, type FaceSpec } from "./face-parts";
 export { face, klim, loadUiFonts, useUiFontsLoaded } from "./fonts";
 export { Icon, type IconName, type IconProps } from "./Icon";
 export { IconTile, type IconTileProps, type TileMeaning } from "./IconTile";
