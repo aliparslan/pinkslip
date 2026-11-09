@@ -369,9 +369,6 @@ export const uiDark = {
   "--ui-swipe-read": "oklch(0.624 0.203 255.5)",
   "--ui-swipe-applied": "oklch(0.756 0.205 147)",
   "--ui-swipe-queue": "oklch(0.656 0.224 312.4)",
-  // The live bar filling (owner, 2026-11-08): opaque, since a see-through
-  // purple over glass looked muddy, and lighter than Queue's bot on it.
-  "--ui-queue-fill": "oklch(0.37 0.12 312)",
   "--ui-swipe-neutral": "oklch(0.648 0.007 286)",
   "--ui-pill": "oklch(1 0 0 / 0.12)",
   "--ui-seg-on": "oklch(0.38 0.006 285)",
@@ -442,7 +439,6 @@ export const uiLight = {
   "--ui-swipe-read": "oklch(0.603 0.215 257.4)",
   "--ui-swipe-applied": "oklch(0.73 0.191 147.4)",
   "--ui-swipe-queue": "oklch(0.615 0.21 312.4)",
-  "--ui-queue-fill": "oklch(0.88 0.08 312)",
   "--ui-swipe-neutral": "oklch(0.648 0.007 286)",
   "--ui-pill": "oklch(0 0 0 / 0.06)",
   "--ui-seg-on": "oklch(1 0 0)",

@@ -44,5 +44,6 @@ counter pill, and a ring in the Dynamic Island in
 | 3 | Thin line under the words | Glass stays glass; purple stays in the bot and the line |
 | 4 | Ring round the bot | Most compact; the amount is harder to read |
 
-Recommended: 3, with the fill easing forward as the current one does. Waits on
-the owner's pick.
+The owner picked 3, a plain line. Perforating its track and a row of one punch
+per application were also tried on glass. The first looked fussy over the
+blurred rows and the second read as a page control, so neither went in.

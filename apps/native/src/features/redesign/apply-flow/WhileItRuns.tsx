@@ -1,5 +1,5 @@
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
-import { Children, Fragment, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Children, Fragment, useEffect, useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
@@ -45,12 +45,12 @@ export interface LiveQueue {
 }
 
 /**
- * 4.1, the live bar: a slim pill above the tab bar on every tab, Queue's solid
- * bot, what it's doing and how far, and, once sends can pause, a round pause.
- * The run fills it from behind the bot in a soft lilac, opaque so the glass
- * can't muddy it and lighter so the bot stays its own thing (owner,
- * 2026-11-08). Tapping it opens the queue.
- * Its place is the tab bar's `above` slot.
+ * 4.1, the live bar: a slim pill of glass above the tab bar on every tab,
+ * Queue's solid bot, what it's doing and how far, and, once sends can pause, a
+ * round pause. How far is a thin line under the words: color stays small and
+ * on top of the glass, since a wide fill either covered it or went muddy over
+ * the rows behind (owner, 2026-11-08, docs/live-bar-progress-2026-11-08.md).
+ * Tapping it opens the queue. Its place is the tab bar's `above` slot.
  */
 export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, onOpenJob }: {
   state: LiveState;
@@ -74,18 +74,6 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, on
   // While SENT comes down the form is all sent, so the fill is full.
   const share = shown.kind === "sending" || shown.kind === "paused" ? (before ? 1 : shown.share) : 0;
   const running = shown.kind === "sending" || shown.kind === "paused";
-  const [barWidth, setBarWidth] = useState(0);
-  // A pill as long as the bar, slid in from the left so its round end shows.
-  // Never short of the circle around the bot, however early in the run.
-  const fillBehind = LIVE_BAR_HEIGHT + share * (barWidth - LIVE_BAR_HEIGHT) - barWidth;
-  const fillShift = useSharedValue(-OFF_BAR);
-  const fillPlaced = useRef(false);
-  useLayoutEffect(() => {
-    if (barWidth === 0) return;
-    fillShift.value = fillPlaced.current ? withTiming(fillBehind, timing(SETTLE_FILL)) : fillBehind;
-    fillPlaced.current = true;
-  }, [fillBehind, barWidth, fillShift]);
-  const fillMoving = useAnimatedStyle(() => ({ transform: [{ translateX: fillShift.value }] }));
   const dip = useSharedValue(0);
   const drag = useSharedValue(0);
   const meet = () => {
@@ -115,8 +103,7 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, on
     <Pressable onPress={() => state.kind === "needs" ? onAction?.() : setOpen(true)} accessibilityRole="button" accessibilityLabel={label}
       accessibilityActions={stamped && onDismiss ? [{ name: "dismiss", label: "Dismiss" }] : undefined}
       onAccessibilityAction={(event) => { if (event.nativeEvent.actionName === "dismiss") onDismiss?.(); }}>
-      <GlassView glassEffectStyle="regular" style={[styles.bar, !GLASS && styles.paper]} onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}>
-        {running && barWidth > 0 ? <Animated.View key="fill" pointerEvents="none" exiting={FILL_OUT} style={[styles.fill, { width: barWidth }, fillMoving]} /> : null}
+      <GlassView glassEffectStyle="regular" style={[styles.bar, !GLASS && styles.paper]}>
         {stamped && !before && state.kind === "done"
           ? <Animated.View key="after" entering={SWAP_IN} style={styles.done}>
             {state.job
@@ -141,6 +128,7 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, on
                 {shown.kind === "sending" || shown.kind === "paused" ? <Text role="subhead" tone="ink-3">{`  ${shown.count}`}</Text>
                   : (shown.kind === "done" || shown.kind === "needs") && shown.detail ? <Text role="subhead" tone="ink-3">{`  ${shown.detail}`}</Text> : null}
               </Text>
+              {running ? <ProgressLine share={share} roomAtEnd={!onPause && !stamped} /> : null}
             </View>
           </Animated.View>}
         {/* In its own box: a hugging button aligns to the top of a row. */}
@@ -166,6 +154,18 @@ function QueueMark() {
   const { theme } = useUnistyles();
   return <View style={[styles.mark, { backgroundColor: theme.ui.color["swipe-queue"] }]}>
     <Icon name="autoApply" weight="fill" size={QUEUE_MARK_ICON} tone="accent-ink" />
+  </View>;
+}
+
+/** How far the run has got: Queue's purple on a faint track, easing forward. */
+function ProgressLine({ share, roomAtEnd }: { share: number; roomAtEnd: boolean }) {
+  const progress = useSharedValue(share);
+  useEffect(() => {
+    progress.value = withTiming(share, timing(LINE_MOVE));
+  }, [share, progress]);
+  const reached = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
+  return <View style={[styles.lineTrack, roomAtEnd && styles.lineRoom]}>
+    <Animated.View style={[styles.lineFill, reached]} />
   </View>;
 }
 
@@ -246,12 +246,8 @@ const STAMP_DIP = 2;
 /** Under SENT, what it said goes quickly and the job fades in just behind
  * it, so the two are never readable at once (the sheet steps' rule). */
 const SWAP_OUT = FadeOut.duration(80);
-/** The purple clears as the bar turns to the job that went. */
-const FILL_OUT = FadeOut.duration(160);
-/** The fill eases forward as the run does. */
-const SETTLE_FILL = { duration: 420, curve: [0.23, 1, 0.32, 1] as const };
-/** Further left than any bar is wide: where the fill waits until the bar is measured. */
-const OFF_BAR = 2000;
+/** The line eases forward as the run does. */
+const LINE_MOVE = { duration: 420, curve: [0.23, 1, 0.32, 1] as const };
 /** The bot's size in its 36 circle: as big against it as on a Queue swipe. */
 const QUEUE_MARK_ICON = 23;
 const SWAP_IN = FadeIn.delay(60).duration(140);
@@ -261,7 +257,10 @@ const styles = StyleSheet.create((theme) => ({
   flex: { flex: 1, minWidth: 0 },
   bar: { height: LIVE_BAR_HEIGHT, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: 9, borderRadius: 27, overflow: "hidden" },
   paper: { backgroundColor: theme.ui.color["bg-elev"], boxShadow: theme.ui.shadow.pill },
-  fill: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: LIVE_BAR_HEIGHT / 2, borderCurve: "continuous", backgroundColor: theme.ui.color["queue-fill"] },
+  lineTrack: { height: 3, marginTop: theme.ui.space["1"], borderRadius: theme.ui.radius.full, overflow: "hidden", backgroundColor: theme.ui.color.fill },
+  // Without a button at its end, the line stops short of the pill's curve.
+  lineRoom: { marginRight: theme.ui.space["3"] },
+  lineFill: { height: 3, borderRadius: theme.ui.radius.full, backgroundColor: theme.ui.color["swipe-queue"] },
   mark: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color["bg-grouped"] },
   markSlot: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
   done: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },

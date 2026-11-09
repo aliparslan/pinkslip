@@ -851,10 +851,10 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     in the tab bar's `above` slot, so it comes and goes with the bar and
     lists and toasts make room. One application counts its fields
     ("Applying to Toast 11 of 17"), several count applications ("3 of
-    9"). The bot is Queue's, white on solid `swipe-queue`. The run fills the
-    bar from behind it in `queue-fill`, an opaque lilac that eases forward
-    (owner, 2026-11-08: see-through purple on glass looked muddy, and the
-    bot's own purple merged with the fill). A job that needs you takes it over with its
+    9"). The bot is Queue's, white on solid `swipe-queue`. How far is a thin
+    line under the words, in `swipe-queue` on a `fill` track, easing forward
+    (owner, 2026-11-08: a wide fill looked bold or muddy on glass;
+    `live-bar-progress-2026-11-08.md`). A job that needs you takes it over with its
     logo, a pink dot and its action (Answer, Enter, Finish), which opens
     the job's sheet. Done ("3 sent · 2 confirmed so far", or "Sent to
     Toast · Confirmed") stays 4 seconds. Tap for the queue: Now, Up next,
