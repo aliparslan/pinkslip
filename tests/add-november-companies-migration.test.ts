@@ -5,6 +5,7 @@ import { getAdapter, normalizeCompanySource } from "@worker/ats";
 
 const migrationsDir = new URL("../migrations/", import.meta.url).pathname;
 const ADD = "0117_add_approved_companies_nov.sql";
+const ENABLE = "0118_enable_approved_companies_nov.sql";
 const migrations = readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort();
 
 async function databaseBefore() {
@@ -43,5 +44,17 @@ describe("adding the companies approved in november", () => {
     const after = (db.query("SELECT COUNT(*) AS n FROM companies").get() as { n: number }).n;
     expect(after).toBeGreaterThan(before + 500);
     expect(db.query("SELECT name FROM sqlite_master WHERE name = 'add_0117_companies'").get()).toBeNull();
+  });
+
+  it("turns on only this batch once the backfill has run", async () => {
+    const db = await databaseBefore();
+    db.run(`INSERT INTO companies (id, name, ats_type, source_type, ats_slug, website, enabled, poll_tier)
+            VALUES ('retired', 'Retired Co', 'greenhouse', 'greenhouse', 'retired', '', 0, 2)`);
+    db.run(await Bun.file(`${migrationsDir}${ADD}`).text());
+    db.run(await Bun.file(`${migrationsDir}${ENABLE}`).text());
+
+    expect(db.query("SELECT enabled FROM companies WHERE name = 'Harvey'").get()).toEqual({ enabled: 1 });
+    expect(db.query("SELECT enabled FROM companies WHERE name = 'Hilbert'").get()).toEqual({ enabled: 1 });
+    expect(db.query("SELECT enabled FROM companies WHERE name = 'Retired Co'").get()).toEqual({ enabled: 0 });
   });
 });

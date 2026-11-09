@@ -374,3 +374,36 @@ form runs across several screens without a page load.
 existing readers (Visa, Sandisk, Unity, Qualcomm, Walmart, Electronic Arts). None
 answered at the obvious address, so each needs its own look. Eight are on Oracle
 Recruiting Cloud, which needs a new reader.
+
+## 9. The November company batch
+
+The owner went through the 564 companies Claude had picked: 544 approved, 4
+skipped, 16 left open. Migrations 0117 and 0118 add 529 of them, on the hourly
+tier: Ashby 289, Greenhouse 172, Lever 44, Workday 17, SmartRecruiters 7.
+
+**How they went in.** A company added as enabled has its whole open catalog
+treated as new, so they were added disabled, each catalog was backfilled through
+`POST /api/v2/companies/:id/poll?backfill=true`, and only then were they turned
+on. 1,456 open jobs came in at 310 companies, with 0 alerts. The other 219 have
+no early-career job today and are being watched.
+
+**Held out (15).**
+
+- Speechify: its board is three roles repeated across 246 cities, with the city
+  in the title, so it would put 246 copies of one job in the feed.
+- Boards that didn't read (11): Aircall, G-Research (no US filter on its Workday
+  site), Klarity, AQR, Pryzm, Carbon Robotics, Tilde Research, LiveRamp (Workday
+  403), Beacon Software, Anything, Legend Labs.
+- No reader yet (3): Fortinet (Oracle), SAS (iCIMS), Tyler Technologies (Jobvite).
+
+**Websites.** Each was opened and its title compared with the company. Greenhouse
+board pages link to greenhouse.com in the footer, so that source needed a filter.
+Aquatic Capital, Hilbert and Ricursive Intelligence have no website stored,
+because nothing could be confirmed or their icon was a host's default.
+
+**Logos.** 115 went into R2: GitHub org avatars 34, Ashby's square logo 33, site
+icons 17, App Store icons 12, job-board logos 11, Y Combinator 5, other site
+icons 3. 394 use Google's 128px favicon, 15 are right but under 128px, and 5 show
+initials. Every one was checked by eye, which caught blank white-on-clear icons,
+hosts' default favicons (WP Engine, Vercel), GitHub's generated identicons and
+App Store apps from a different company of the same name.
