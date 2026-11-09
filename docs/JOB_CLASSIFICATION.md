@@ -51,10 +51,23 @@ seniority, so this is the only question whose answer reaches users (2026-11-08).
 **Status: not admitting anything yet.** `pollCompany` applies rulings only with
 `admitLocationRulings`, which no caller sets. The 18 to 1 came from rows where Jev
 and the rules disagreed, and all 27 sampled answers on these locations were on
-postings open in the US, so Jev's "no" is unmeasured. A wrong yes would label a
-Bengaluru job "Hybrid, United States". Of the 84 postings it would be asked about
-on 2026-11-08, 61 are Cloudflare's, and 17 of those name only foreign cities.
-Score it against those before turning it on.
+postings open in the US, so Jev's "no" was unmeasured. A wrong yes would label a
+Bengaluru job "Hybrid, United States".
+
+**Eval, 2026-11-09.** Jev answered the 84 postings it would be asked about, with
+admission off, against an answer key fixed from each posting's own text beforehand.
+
+| Answer key | Postings | Would be admitted | Kept out |
+|---|---|---|---|
+| Foreign only | 22 | 0 | 22 |
+| Open to the US | 59 | 52 | 7 |
+| Unclear | 3 | 0 | 3 |
+
+On the foreign postings Jev's highest "yes" was 0.17. All 59 US postings got a yes;
+the 7 kept out fell under the 0.8 bar (0.63 to 0.76). Limits: all 22 foreign postings
+are Cloudflare's and state their location in the text, so this says nothing about a
+foreign posting that doesn't. With 22 of 22, the true miss rate could still be as high
+as about 13%. The key for the 23 non-Cloudflare postings is a reading of their text.
 
 - `isUnreadableLocation` decides what counts. A place named anywhere in the text
   ("Remote - EU", "Hybrid - Toronto") stays the filter's call.
