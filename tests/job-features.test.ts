@@ -931,3 +931,20 @@ describe("catalogCareerStages", () => {
     expect(catalogCareerStages({ seniority: "staff_plus", min_years: 2 })).toEqual([]);
   });
 });
+
+describe("solutions roles", () => {
+  const listing = (title: string) => ({ externalId: "1", title, url: "https://example.com", location: "Remote", department: null, postedAt: null, description: null, salary: null });
+
+  it("have a role of their own, apart from SWE and FDE", () => {
+    for (const title of ["Solutions Architect, Integrations", "Solutions Engineer", "Sales Engineer", "Customer Engineer"]) {
+      const features = classifyJob(listing(title));
+      expect(features.role_family).toBe("engineering");
+      expect(features.specialties).toEqual(["solutions"]);
+    }
+  });
+
+  it("leave forward deployed engineers where they were", () => {
+    expect(classifyJob(listing("Forward Deployed Engineer")).specialties).toContain("forward_deployed");
+    expect(classifyJob(listing("Forward Deployed Engineer")).specialties).not.toContain("solutions");
+  });
+});

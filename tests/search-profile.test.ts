@@ -591,3 +591,19 @@ describe("the career-stage band", () => {
     expect(evaluateJobForProfile("evergreen", listing, features, profile, true).plausible).toBe(true);
   });
 });
+
+describe("the solutions role", () => {
+  const oldRoles = ROLE_OPTIONS.map((role) => role.id).filter((id) => id !== "solutions");
+
+  test("joins a saved no-preference profile, so it stays no preference", () => {
+    expect(normalizeSearchProfile({ version: 7, roles: oldRoles }).roles).toContain("solutions");
+  });
+
+  test("stays off for someone who picked particular roles", () => {
+    expect(normalizeSearchProfile({ version: 7, roles: ["software_engineering", "frontend"] }).roles).not.toContain("solutions");
+  });
+
+  test("stays off once someone has seen the choice and left it off", () => {
+    expect(normalizeSearchProfile({ version: 8, roles: oldRoles }).roles).not.toContain("solutions");
+  });
+});

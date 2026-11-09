@@ -85,6 +85,15 @@ as about 13%. The key for the 23 non-Cloudflare postings is a reading of their t
 To turn this off, set `JEV_LOCATION_RULINGS` to anything else and deploy: jobs it
 admitted fail the filter and close as absent on their next polls.
 
+## Solutions roles
+
+Solutions architects, solutions engineers, sales engineers and customer engineers
+share a role of their own, `solutions`, shown as the "Solutions" chip. The same job
+goes by all of those names. It's customer-facing technical work that a CS graduate
+qualifies for, but it isn't what someone picking SWE is asking for, so the chip starts
+off. A saved "No preference" includes it. Before this, these titles either had no role
+anyone could choose or were rejected as non-technical, so they reached no one.
+
 ## Limits and cache
 
 One D1 queue reuses the existing notification cron. Jev runs after notification

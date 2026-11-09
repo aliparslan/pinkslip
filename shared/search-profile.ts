@@ -1,4 +1,4 @@
-export const SEARCH_PROFILE_VERSION = 7 as const;
+export const SEARCH_PROFILE_VERSION = 8 as const;
 export const ONBOARDING_VERSION = 3 as const;
 
 export const ROLE_OPTIONS = [
@@ -96,6 +96,16 @@ export const ROLE_OPTIONS = [
     shortLabel: "Security",
     keywords: ["security engineer", "application security", "product security", "security researcher"],
     departments: ["security", "engineering"],
+  },
+  {
+    // Customer-facing technical work: the same job goes by all of these names.
+    // Opt-in, because it isn't what someone picking SWE is asking for.
+    id: "solutions",
+    family: "engineering",
+    label: "Solutions",
+    shortLabel: "Solutions",
+    keywords: ["solutions architect", "solution architect", "solutions engineer", "solution engineer", "sales engineer", "presales engineer", "pre-sales engineer", "customer engineer"],
+    departments: ["solutions", "sales engineering"],
   },
 ] as const;
 
@@ -303,7 +313,13 @@ export function normalizeSearchProfile(value: unknown): SearchProfile {
           ...roles.slice(roles.indexOf("software_engineering") + 1),
         ]
       : roles;
-  const selectedRoles = migratedRoles.length > 0 ? migratedRoles : [...DEFAULT_SEARCH_PROFILE.roles];
+  // "No preference" is every role, so a new role joins it and it stays no preference.
+  const hadEveryRole = sourceVersion < 8
+    && ROLE_OPTIONS.every((option) => option.id === "solutions" || migratedRoles.includes(option.id));
+  const withNewRoles: RoleId[] = hadEveryRole && !migratedRoles.includes("solutions")
+    ? [...migratedRoles, "solutions"]
+    : migratedRoles;
+  const selectedRoles = withNewRoles.length > 0 ? withNewRoles : [...DEFAULT_SEARCH_PROFILE.roles];
   const legacyLevel = levelFromLegacy(input.experience_level);
   const requestedStages = stringList(input.target_levels, CAREER_STAGE_OPTIONS.length)
     .filter((level): level is CareerStage => CAREER_STAGE_IDS.has(level));

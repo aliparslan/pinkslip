@@ -376,3 +376,17 @@ describe("internships", () => {
     expect(classifyTitleScope("Software Engineer, Internationalization").admitted).toBe(true);
   });
 });
+
+describe("solutions roles", () => {
+  it("admits sales and customer engineers", () => {
+    for (const title of ["Sales Engineer", "Associate Sales Engineer", "Customer Engineer, Google Cloud"]) {
+      expect(classifyTitleScope(title).admitted).toBe(true);
+    }
+  });
+
+  it("still rejects support and sales development roles", () => {
+    for (const title of ["Support Engineer", "Sales Development Representative", "Technical Solutions Engineer"]) {
+      expect(classifyTitleScope(title).admitted).toBe(false);
+    }
+  });
+});

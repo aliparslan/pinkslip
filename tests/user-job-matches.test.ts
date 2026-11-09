@@ -591,3 +591,14 @@ describe("notification-scoped matching", () => {
     sqlite.close();
   });
 });
+
+describe("solutions roles", () => {
+  const listing = { ...makeListing("solutions"), title: "Solutions Architect", department: null, description: "2+ years of experience." };
+  const features = classifyJob(listing);
+  const withRoles = (roles: RoleId[]) => normalizeSearchProfile({ ...DEFAULT_SEARCH_PROFILE, roles });
+
+  it("reach only people who chose them", () => {
+    expect(evaluateJobForProfile("solutions", listing, features, withRoles(["software_engineering", "forward_deployed"])).plausible).toBe(false);
+    expect(evaluateJobForProfile("solutions", listing, features, withRoles(["solutions"])).plausible).toBe(true);
+  });
+});
