@@ -239,7 +239,10 @@ export function readForm(): FormControl[] {
     }
     // Inputs a person can't see aren't questions, except a file input or a
     // combobox, which sites often hide behind their own button.
-    if (!visible(input) || input.tabIndex < 0) continue;
+    // Select2 hides a real dropdown the same way. Lever's school question is
+    // one: skipped, the form read as complete and Submit failed in silence.
+    const behindSearch = element instanceof HTMLSelectElement && element.classList.contains("select2-hidden-accessible");
+    if (!behindSearch && (!visible(input) || input.tabIndex < 0)) continue;
     // Signing a government form is the person's to do (Lever's disability form).
     if (/signature/i.test(input.getAttribute("name") ?? "")) continue;
     const label = labelFor(input);

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { FILL_FORM_FUNCTION, READ_FORM_BODY, SUBMIT_FORM_BODY } from "../src/platform/autofill/scripts.generated";
+import { SUBMIT_BUTTON } from "../src/platform/autofill/submit-button";
 
 /** A Greenhouse-style form: labelled inputs, a required marker, a select,
  * radios, a consent checkbox, a resume upload and a submit button. */
@@ -54,6 +55,10 @@ const LEVER = `<!doctype html><html><head><meta charset="utf-8"></head><body><fo
 <div class="application-question"><label><div class="application-label">Gender</div><div class="application-field"><div class="application-dropdown"><select name="eeo[gender]"><option value="">Select ...</option><option value="Male">Male</option><option value="Female">Female</option></select></div></div><div class="note">About each option</div></label></div>
 <div class="application-question"><label><div class="application-label multiple-choice">Race</div><div class="application-field"><ul data-qa="multiple-choice"><li><label><input type="radio" name="eeo[race]" value="Hispanic or Latino"><span class="eeo-option-text">Hispanic or Latino</span></label></li><li><label><input type="radio" name="eeo[race]" value="White"><span class="eeo-option-text">White</span></label></li></ul></div></label></div>
 <div class="application-question"><label><div class="application-label">Name</div><div class="application-field"><input type="text" name="eeo[disabilitySignature]"></div></label></div>
+<li class="application-question custom-question"><div class="application-label full-width university"><div class="text">Which school do you attend?<span class="required">✱</span></div></div><div class="application-field full-width"><div class="application-university"><select class="select2-hidden-accessible" tabindex="-1" aria-hidden="true" required name="cards[x][field1]" style="position:absolute;clip:rect(0 0 0 0);width:1px;height:1px"><option value="">Select a university</option><option value="MIT">MIT</option><option value="Stanford">Stanford</option></select><span class="select2 select2-container"><span class="selection">Select a university</span></span></div></div></li>
+<button type="button" id="apply-linkedin">Apply with LinkedIn</button>
+<button id="hcaptchaSubmitBtn" type="submit" style="display:none"></button>
+<button id="btn-submit" type="button">Submit application</button>
 </form></body></html>`;
 
 interface Control { ref: string; kind: string; label: string; required: boolean; options: string[]; value: string | string[] | null }
@@ -81,10 +86,18 @@ test("reads Lever's questions without the options and buttons around them", asyn
   const { controls } = await read(page);
   const byLabel = Object.fromEntries(controls.map((control) => [control.label, control]));
   // No "Name": the disability form's signature stays the person's to give.
-  expect(Object.keys(byLabel).sort()).toEqual(["Full name", "Gender", "Race", "Resume/CV"]);
+  expect(Object.keys(byLabel).sort()).toEqual(["Full name", "Gender", "Race", "Resume/CV", "Which school do you attend?"]);
   expect(byLabel["Resume/CV"]).toMatchObject({ kind: "file", required: true });
   expect(byLabel["Gender"]?.options).toEqual(["Male", "Female"]);
   expect(byLabel["Race"]?.options).toEqual(["Hispanic or Latino", "White"]);
+  // Hidden behind a search widget, but required: left out, Submit fails in silence.
+  expect(byLabel["Which school do you attend?"]).toMatchObject({ kind: "select", required: true, options: ["MIT", "Stanford"] });
+});
+
+test("Go to Submit finds Lever's real button, not its hidden one", async ({ page }) => {
+  await page.route("https://jobs.lever.co/**", (route) => route.fulfill({ contentType: "text/html", body: LEVER }));
+  await page.goto("https://jobs.lever.co/acme/1/apply");
+  expect(await page.evaluate(`(${SUBMIT_BUTTON}).id`)).toBe("btn-submit");
 });
 
 test("fills each kind of field, attaches the resume, and submits", async ({ page }) => {

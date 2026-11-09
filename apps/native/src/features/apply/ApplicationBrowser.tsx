@@ -12,6 +12,7 @@ import { GlyphMenu, Icon, IconButton, Text, type IconName } from "../../ui";
 import { suggestAnswer, type AnswerSuggestion } from "./answer-match";
 import { autoApply, type ApplicationBrowserSession, type AutoApplyResult, type FillProgress } from "../../platform/autofill/auto-apply";
 import { runAutoApply } from "../../platform/autofill/auto-apply-loop";
+import { SUBMIT_BUTTON } from "../../platform/autofill/submit-button";
 import { SAMPLE_ANSWERS, SAMPLE_FORM, SAMPLE_RESUME, sampleApplyApi } from "./sample-form";
 
 export interface ApplicationRequest {
@@ -113,8 +114,6 @@ const focusScript = (ref: string) => `(() => { const el = ${byRef(ref)}; if (!el
   if (el.tagName !== "SELECT") { try { el.focus({ preventScroll: true }); } catch {} } })(); true;`;
 
 /** The board's own Submit, found and shown, never pressed: Pinkslip doesn't submit for you here. */
-const SUBMIT_BUTTON = `(document.querySelector('button[type=submit], input[type=submit]')
-  || [...document.querySelectorAll('button, [role=button], input[type=button]')].find((b) => /submit|apply/i.test((b.textContent || b.value || "").trim())))`;
 const showSubmitScript = (accent: string) => `(() => { const b = ${SUBMIT_BUTTON}; if (!b) return;
   b.scrollIntoView({ block: "center", behavior: "smooth" });
   b.style.outline = "3px solid ${accent}"; b.style.outlineOffset = "2px"; setTimeout(() => { b.style.outline = ""; }, 1800); })(); true;`;
