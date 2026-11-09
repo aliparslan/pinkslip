@@ -232,7 +232,16 @@ What made that possible:
   with the page, but the color handed to SwiftUI waited for a redraw, so the
   band sat at the wrong shade for about 280ms and then popped (owner, Nov 9).
 
-Still moving after the flip: iOS's glass on the tab bar and page buttons, about
-0.4s, which telling it the scheme made slower (0.7s), and the ticket's punched
-holes, about 0.3s.
+Still moving after the flip: iOS's glass on the page buttons, about 0.4s, which
+telling it the scheme made slower (0.7s), and the ticket's punched holes, about
+0.3s.
+
+The tab bar doesn't show its glass changing (owner, Nov 9: a gray middle state).
+`GlassThemeCover` sits inside the glass, under the icons: `bg-elev` with `fill`
+on top, which measures 242 and 36 against settled glass at 244 and 35. It goes
+up two frames before the colors change, because a value set from JavaScript
+reaches the screen only after that turn of JavaScript ends, and it lifts over
+160ms once the glass is done. Tab icons are drawn once per appearance, with the
+sheet showing the current one. The page buttons don't have this: their icons
+still recolor through a redraw, and would be pale on a cover.
 
