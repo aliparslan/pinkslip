@@ -134,10 +134,18 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   // Which list the chips and filters asked for. Typing a search narrows the
   // same list, so it goes straight through.
   const listAsked = useMemo(() => JSON.stringify({ ...params, q: undefined }), [params]);
-  const { rows: shown, fade: rowsFade } = useRowsSwap(held?.items ?? items, listAsked, feed.isPlaceholderData);
+  // Kit → Motion fixes: rows both lists share slide to their new places.
+  const slides = useMotionTrial("chipSlide");
+  const playSwap = useRef<((from: Item[], to: Item[], change: () => void) => void) | null>(null);
+  const { rows: shown, fade: rowsFade } = useRowsSwap(held?.items ?? items, listAsked, feed.isPlaceholderData,
+    slides ? (from, to, change) => playSwap.current?.(from, to, change) : undefined);
   const aroundRows = useAnimatedStyle(() => ({ opacity: rowsFade.value }));
   const keys = useMemo(() => allKeys(shown), [shown]);
   const { play, value: listChange } = useListMotion(keys);
+  playSwap.current = (from, to, change) => play(changedKeys(allKeys(from), allKeys(to)), () => {
+    list.current?.prepareForLayoutAnimationRender();
+    change();
+  });
   useEffect(() => {
     if (!held) return;
     let live = true;

@@ -76,9 +76,14 @@ const ROWS_WAITING = 0.4;
  *
  * `list` says which list `latest` is: while it stays the same, new rows go
  * straight through, so paging, a new posting or a stage move plays as before.
+ *
+ * `slide`, when given, plays the swap instead: it's handed the rows on screen,
+ * the rows coming, and the change to make once the cells are ready.
  */
-export function useRowsSwap<T, L>(latest: T, list: L, waiting = false): { rows: T; list: L; fade: SharedValue<number> } {
+export function useRowsSwap<T, L>(latest: T, list: L, waiting = false, slide?: (from: T, to: T, change: () => void) => void): { rows: T; list: L; fade: SharedValue<number> } {
   const on = useMotionTrial("chipFade");
+  const slideNow = useRef(slide);
+  slideNow.current = slide;
   const fade = useSharedValue(1);
   const [, render] = useReducer((count: number) => count + 1, 0);
   const settled = useRef({ rows: latest, list });
@@ -94,12 +99,14 @@ export function useRowsSwap<T, L>(latest: T, list: L, waiting = false): { rows: 
         frame = requestAnimationFrame(() => { fade.value = withTiming(1, ROWS_IN); });
       });
     } else {
-      fade.value = withTiming(ROWS_WAITING, ROWS_DIM);
+      const change = () => {
+        settled.current = newest.current;
+        render();
+      };
+      if (waiting || !slideNow.current) fade.value = withTiming(ROWS_WAITING, ROWS_DIM);
       if (!waiting) {
-        frame = requestAnimationFrame(() => {
-          settled.current = newest.current;
-          render();
-        });
+        if (slideNow.current) slideNow.current(settled.current.rows, newest.current.rows, change);
+        else frame = requestAnimationFrame(change);
       }
     }
     return () => cancelAnimationFrame(frame);

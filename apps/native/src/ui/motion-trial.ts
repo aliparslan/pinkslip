@@ -15,7 +15,7 @@ import { storage } from "../platform/storage";
  */
 export type MotionTrial = "undo" | "sheetFade" | "wheel" | "trackerLoad" | "pdfSettle"
   | "zoom" | "stampBar" | "stampOffer" | "trackerMove" | "jobsArrive" | "todayZoom" | "zoomLanding"
-  | "themeFade" | "chipFade";
+  | "themeFade" | "chipFade" | "chipSlide";
 
 export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; proposed: string }[] = [
   { id: "undo", title: "Undo brings the job back", today: "It appears in one frame", proposed: "Hide played backwards" },
@@ -35,19 +35,26 @@ export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; pro
   // The owner asked for these two to be reviewed and workshopped (Nov 8).
   { id: "themeFade", title: "Light and dark", today: "It cuts, and parts catch up late", proposed: "The page ramps to the new color" },
   { id: "chipFade", title: "A chip changes the list", today: "The rows cut over, late on Jobs", proposed: "Rows dim, the new ones come up" },
+  { id: "chipSlide", title: "A chip slides the rows", today: "Rows dim and come up", proposed: "Rows that stay slide, the rest fade" },
 ];
 
 const key = (id: MotionTrial) => `kit-motion-${id}`;
+/** Still being judged: off until switched on here, unlike the rest. */
+const OFF_UNTIL_ON: ReadonlySet<MotionTrial> = new Set(["chipSlide"]);
 const listeners = new Set<() => void>();
 const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
 
 /** Whether the proposal is on: everywhere unless it was switched back. */
 export function motionTrial(id: MotionTrial): boolean {
-  return storage.getString(key(id)) !== "today";
+  const kept = storage.getString(key(id));
+  return OFF_UNTIL_ON.has(id) ? kept === "proposed" : kept !== "today";
 }
 
 export function setMotionTrial(id: MotionTrial, proposed: boolean) {
-  if (proposed) storage.remove(key(id));
+  if (OFF_UNTIL_ON.has(id)) {
+    if (proposed) storage.set(key(id), "proposed");
+    else storage.remove(key(id));
+  } else if (proposed) storage.remove(key(id));
   else storage.set(key(id), "today");
   for (const listener of listeners) listener();
 }
