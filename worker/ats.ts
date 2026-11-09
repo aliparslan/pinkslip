@@ -29,6 +29,7 @@ import {
 } from "./adapters/smartrecruiters";
 import { WorkableAdapter, normalizeWorkableSource } from "./adapters/workable";
 import { AvatureAdapter, normalizeAvatureSource } from "./adapters/avature";
+import { OracleAdapter, normalizeOracleSource } from "./adapters/oracle";
 import { AtlassianAdapter, normalizeAtlassianSource } from "./adapters/atlassian";
 import { WorkdayAdapter, normalizeWorkdaySource } from "./adapters/workday";
 import { YcAdapter, normalizeYcSource } from "./adapters/yc";
@@ -103,6 +104,11 @@ const SOURCE_RUNTIMES = {
   avature: {
     createAdapter: () => new AvatureAdapter(),
     normalize: normalizeAvatureSource,
+    defaultPollTier: 2,
+  },
+  oracle: {
+    createAdapter: () => new OracleAdapter(),
+    normalize: normalizeOracleSource,
     defaultPollTier: 2,
   },
   atlassian: {

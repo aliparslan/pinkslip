@@ -8,6 +8,7 @@ export const POLLABLE_COMPANY_SOURCE_TYPES = [
   "smartrecruiters",
   "workable",
   "avature",
+  "oracle",
   "atlassian",
   "yc",
   "amazon",
@@ -117,6 +118,18 @@ export const COMPANY_SOURCE_PRESENTATION = {
       placeholder: "https://careers.company.com/careers/OpenRoles",
     },
     careersUrl: (slug) => slug,
+  },
+  oracle: {
+    label: "Oracle Recruiting",
+    input: {
+      label: "Career site URL",
+      type: "url",
+      placeholder: "https://company.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1",
+    },
+    careersUrl: (slug) => {
+      const [host, site] = slug.split("/");
+      return `https://${host}/hcmUI/CandidateExperience/en/sites/${site}`;
+    },
   },
   atlassian: {
     label: "Atlassian",
