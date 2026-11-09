@@ -8,14 +8,14 @@ import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Link, router, Stack } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
-import Animated, { Easing, FadeIn } from "react-native-reanimated";
+import Animated, { Easing, FadeIn, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
 import { haptics } from "../../platform/haptics";
 import {
   changedKeys, Chip, EMPTY_TOP, EmptyState, glyphMenuAction, IconButton, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SheetHeader, SheetModal, SheetStep, StageMark, Text, toast,
-  TopEdgeBlur, useListMotion, useTabBarScroll, useTabBarSpace, useTopEdge, type StageGroup, LastInSection } from "../../ui";
+  TopEdgeBlur, useListMotion, useRowsSwap, useTabBarScroll, useTabBarSpace, useTopEdge, type StageGroup, LastInSection } from "../../ui";
 import { useSampleEmailTracking } from "../kit/email-sample";
 import { logoUri } from "../jobs/CompanyLogo";
 import { trackingState } from "./email/email-facts";
@@ -87,16 +87,13 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
   const chips = useRef<ScrollView>(null);
   const chipX = useRef(new Map<TrackerView, number>());
   const [view, setView] = useState<TrackerView>(initialView);
-  // A new view starts at the top, with its chip in sight. The list's top
-  // sits under the status bar's inset, so the top is that far above zero.
-  // The first view is already there: iOS sets that inset itself.
-  const shown = useRef(view);
+  // A new view brings its chip into sight.
+  const chipShown = useRef(view);
   useEffect(() => {
-    if (shown.current === view) return;
-    shown.current = view;
-    list.current?.scrollToOffset({ offset: -insets.top, animated: false });
+    if (chipShown.current === view) return;
+    chipShown.current = view;
     chips.current?.scrollTo({ x: Math.max(0, (chipX.current.get(view) ?? 0) - theme.ui.size.gutter), animated: true });
-  }, [view, insets.top, theme.ui.size.gutter]);
+  }, [view, theme.ui.size.gutter]);
   const [stats, setStats] = useState(false);
   const [setup, setSetup] = useState(false);
   const [sampleNudge, setSampleNudge] = useState(true);
@@ -126,7 +123,19 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
   const groups = useMemo(() => groupApplications(data ?? []), [data]);
   // A stage change moves at once and in place (Kit → Motion fixes).
   const movesAtOnce = useMotionTrial("trackerMove");
-  const items = useMemo(() => trackerItems(groups, view, movesAtOnce), [groups, view, movesAtOnce]);
+  const latestItems = useMemo(() => trackerItems(groups, view, movesAtOnce), [groups, view, movesAtOnce]);
+  // The chip lights now; the rows change behind a fade.
+  const { rows: items, list: viewShown, fade: rowsFade } = useRowsSwap(latestItems, view);
+  const nudgeFade = useAnimatedStyle(() => ({ opacity: rowsFade.value }));
+  // A new view starts at the top. The list's top sits under the status bar's
+  // inset, so the top is that far above zero. The first view is already
+  // there: iOS sets that inset itself.
+  const listShown = useRef(viewShown);
+  useEffect(() => {
+    if (listShown.current === viewShown) return;
+    listShown.current = viewShown;
+    list.current?.scrollToOffset({ offset: -insets.top, animated: false });
+  }, [viewShown, insets.top]);
   const keys = useMemo(() => items.map((item) => item.key), [items]);
   const listMotion = useListMotion(keys);
   const queryClient = useQueryClient();
@@ -150,7 +159,7 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
 
   const present = STAGE_GROUPS.filter((group) => (groups.get(group)?.length ?? 0) > 0);
   // Offered until email tracking is set up or put away (Paper 1B).
-  const nudge = view === "all" && (data?.length ?? 0) > 0 && (sample
+  const nudge = viewShown === "all" && (data?.length ?? 0) > 0 && (sample
     ? sampleNudge
     : inbox.data !== undefined && trackingState(inbox.data, prefs.started) === "off" && !prefs.nudgeDismissed);
   const header = <View>
@@ -166,14 +175,14 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
             selected={view === option} onPress={() => setView(view === option ? "all" : option)} />
         </View>)}
     </ScrollView></Animated.View> : null}
-    {nudge ? <Animated.View entering={entering}><TrackerNudge onSetUp={() => setSetup(true)} onDismiss={() => sample ? setSampleNudge(false) : dismissNudge()} /></Animated.View> : null}
+    {nudge ? <Animated.View entering={entering} style={nudgeFade}><TrackerNudge onSetUp={() => setSetup(true)} onDismiss={() => sample ? setSampleNudge(false) : dismissNudge()} /></Animated.View> : null}
   </View>;
 
   return <>
     <Stack.Screen options={{ headerShown: false }} />
-    <ListMotionProvider value={listMotion.value}>
+    <ListMotionProvider value={listMotion.value} fade={rowsFade}>
     <FlashList ref={list} {...tabBarScroll} data={items} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
-      CellRendererComponent={movesAtOnce ? ListMotionCell : undefined}
+      CellRendererComponent={ListMotionCell}
       contentInsetAdjustmentBehavior="automatic" style={styles.fill} contentContainerStyle={{ paddingBottom: tabSpace }}
       ListHeaderComponent={header}
       renderItem={({ item, index }) => <Animated.View entering={entering}>{item.kind === "stage"

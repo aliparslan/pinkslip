@@ -77,6 +77,8 @@ function useFills(uri: string | null | undefined): boolean {
  * 2026-11-08, Paper "Critic fixes · Nov 8", B). 40pt in rows, 48 on a page;
  * the corner is a quarter of the size (10 and 12). */
 export function CompanyLogo({ name, uri, color, size = "row" }: CompanyLogoProps) {
+  // Lists reuse rows, and an Image keeps its last picture until the new one
+  // loads: keyed by address, a row never shows the previous company's logo.
   styles.useVariants({ size });
   // A logo that fails to load falls back to the letter.
   const [failed, setFailed] = useState<string | null>(null);
@@ -86,13 +88,13 @@ export function CompanyLogo({ name, uri, color, size = "row" }: CompanyLogoProps
     // showed a white rim (owner, 2026-11-08: Chainguard, Stripe, Twilio,
     // Crusoe). The outline sits over the image instead of around it.
     return <View style={styles.tile} accessibilityElementsHidden>
-      <Image source={{ uri }} style={styles.filled} resizeMode="cover" onError={() => setFailed(uri)} />
+      <Image key={uri} source={{ uri }} style={styles.filled} resizeMode="cover" onError={() => setFailed(uri)} />
       <View style={styles.outline} pointerEvents="none" />
     </View>;
   }
   if (uri && failed !== uri) {
     return <View style={[styles.tile, styles.white]} accessibilityElementsHidden>
-      <Image source={{ uri }} style={styles.image} resizeMode="contain" onError={() => setFailed(uri)} />
+      <Image key={uri} source={{ uri }} style={styles.image} resizeMode="contain" onError={() => setFailed(uri)} />
     </View>;
   }
   return <View style={[styles.tile, color ? { backgroundColor: color } : styles.white]} accessibilityElementsHidden>

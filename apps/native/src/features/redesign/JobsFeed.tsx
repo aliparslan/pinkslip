@@ -6,10 +6,11 @@ import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Link, useNavigation, useRoute } from "expo-router";
 import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Image, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePullToRefresh } from "../../kit";
 import {
-  changedKeys, Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useListMotion, useTabBarScroll, useTabBarSpace, useTopEdge,
+  changedKeys, Chip, closeOpenSwipeRow, EmptyState, glyphMenuAction, Icon, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useListMotion, useRowsSwap, useTabBarScroll, useTabBarSpace, useTopEdge,
   type GlyphMenuItem, type MenuGlyph, type SwipeAction, LastInSection } from "../../ui";
 import { useMotionTrial } from "../../ui/motion-trial";
 import { useFeedCriteria } from "../feed/Feed";
@@ -130,7 +131,11 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
     last.current.fetching = feed.isFetching;
     last.current.holding = holding;
   }
-  const shown = held?.items ?? items;
+  // Which list the chips and filters asked for. Typing a search narrows the
+  // same list, so it goes straight through.
+  const listAsked = useMemo(() => JSON.stringify({ ...params, q: undefined }), [params]);
+  const { rows: shown, fade: rowsFade } = useRowsSwap(held?.items ?? items, listAsked, feed.isPlaceholderData);
+  const aroundRows = useAnimatedStyle(() => ({ opacity: rowsFade.value }));
   const keys = useMemo(() => allKeys(shown), [shown]);
   const { play, value: listChange } = useListMotion(keys);
   useEffect(() => {
@@ -193,9 +198,9 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
 
   const refined = Boolean(search.loc || search.min || search.max || search.stage || search.listing || search.saved);
   return <>
-  <ListMotionProvider value={listChange}>
+  <ListMotionProvider value={listChange} fade={rowsFade}>
   <FlashList ref={list} {...tabBarScroll} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={shown} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
-    CellRendererComponent={arrives ? ListMotionCell : undefined}
+    CellRendererComponent={ListMotionCell}
     contentInsetAdjustmentBehavior="automatic" style={styles.fill} ListHeaderComponent={header}
     contentContainerStyle={{ paddingBottom: tabSpace }}
     // FlashList keeps the row you were looking at in place when the data
@@ -209,19 +214,19 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
     // Always there: adding or removing it rebuilds the list's content on iOS,
     // and Jobs' field in the header would lose its keyboard.
     refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={waiting ? noop : pull.onRefresh} tintColor={theme.ui.color["ink-3"]} />}
-    ListFooterComponent={jobs.length > 0 ? <>
+    ListFooterComponent={jobs.length > 0 ? <Animated.View style={aroundRows}>
       {after}
       <View style={styles.footer}>
         {moreFailed ? <LoadMoreFailed onRetry={loadMore} />
           : feed.hasNextPage ? <ActivityIndicator color={theme.ui.color["ink-3"]} /> : <Text role="footnote" tone="ink-3">You're all caught up. Go touch grass.</Text>}
       </View>
-    </> : null}
+    </Animated.View> : null}
     ListEmptyComponent={waiting ? <>{idle}</> : feed.isPending ? <RowPlaceholders />
       // Search's own field clears it and its X leaves, so no third button,
       // and a line under the companies rather than a big empty state that
       // sat down by the field (owner, 2026-11-08: "Clear search" and two Xs).
       : scope === "all" && search.q && !feed.isError ? <View style={styles.quiet}><Text role="subhead" tone="ink-2" align="center">No jobs match</Text></View>
-      : <View style={[styles.empty, { minHeight: height * 0.5 }]}>
+      : <Animated.View style={[styles.empty, { minHeight: height * 0.5 }, aroundRows]}>
       {emptyOffline
         ? <EmptyState title="You're offline" message="Jobs will be here when you're back." />
         : feed.isError && !feed.data
@@ -235,7 +240,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
           action={refined
             ? { label: "Clear filters", variant: "secondary", onPress: () => setFeedSearch({}) }
             : { label: "Refresh", variant: "secondary", icon: "refresh", pending: feed.isRefetching, onPress: () => void refresh() }} />}
-    </View>} />
+    </Animated.View>} />
   </ListMotionProvider>
   <TopEdgeBlur under={edge.under} />
   </>;

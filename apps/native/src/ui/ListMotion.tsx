@@ -1,8 +1,9 @@
-import { createContext, forwardRef, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, forwardRef, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import type { View, ViewProps } from "react-native";
-import Animated, { FadeIn, FadeOut, LinearTransition, useReducedMotion } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { StyleSheet } from "react-native-unistyles";
-import { motion, spring } from "./motion";
+import { motion, spring, timing } from "./motion";
+import { useMotionTrial } from "./motion-trial";
 
 /**
  * A list changing under you, the way iOS's do (`motion.list`, fitted to
@@ -32,8 +33,11 @@ interface Change {
 
 const ListChange = createContext<Change>({ keys: [], under: null });
 
-export const ListMotionProvider = ({ value, children }: { value: Change; children: ReactNode }) =>
-  <ListChange.Provider value={value}>{children}</ListChange.Provider>;
+const RowsFade = createContext<SharedValue<number> | null>(null);
+
+/** `fade` is `useRowsSwap`'s, for a list a chip can change. */
+export const ListMotionProvider = ({ value, fade, children }: { value: Change; fade?: SharedValue<number>; children: ReactNode }) =>
+  <ListChange.Provider value={value}><RowsFade.Provider value={fade ?? null}>{children}</RowsFade.Provider></ListChange.Provider>;
 
 /**
  * FlashList's `CellRendererComponent`. Cells only animate while a change
@@ -45,16 +49,65 @@ export const ListMotionCell = forwardRef<View, ViewProps & { index: number }>(fu
   const playing = under !== null;
   const key = keys[index];
   const comesOrGoes = playing && key !== undefined && under.has(key);
+  const fade = useContext(RowsFade);
+  const faded = useAnimatedStyle(() => ({ opacity: fade ? fade.value : 1 }), [fade]);
   // Each row draws over the one above it. FlashList reuses cells in any order,
   // so without this a swiped row's cover over the line above could end up
   // beneath that line (owner, 2026-11-08: the hairline came back).
-  return <Animated.View ref={ref} {...rest} style={[style, { zIndex: index }, playing && styles.playing, playing && (comesOrGoes ? styles.under : styles.over)]}
+  return <Animated.View ref={ref} {...rest} style={[style, { zIndex: index }, playing && styles.playing, playing && (comesOrGoes ? styles.under : styles.over), faded]}
     layout={playing ? ROW_MOVE : undefined}
     entering={playing ? ROW_ARRIVE : undefined}
     exiting={comesOrGoes ? ROW_LEAVE : undefined}>
     {children}
   </Animated.View>;
 });
+
+const ROWS_DIM = timing({ duration: 120, curve: [0.23, 1, 0.32, 1] });
+const ROWS_OUT = timing({ duration: 90, curve: [0.23, 1, 0.32, 1] });
+const ROWS_IN = timing({ duration: motion.list.fade, curve: [0.33, 1, 0.68, 1] });
+/** While the server finds the new rows, the old ones say they're on their way out. */
+const ROWS_WAITING = 0.4;
+
+/**
+ * Swaps a list for a different one (a chip, the filters), with the cost of a
+ * chip in mind: tens of times a day, so nothing slides. The old rows fade, the
+ * new ones fade in where they belong. When the new rows are still on their
+ * way (`waiting`), the old ones dim at once and stay dim until they land.
+ *
+ * `list` says which list `latest` is: while it stays the same, new rows go
+ * straight through, so paging, a new posting or a stage move plays as before.
+ */
+export function useRowsSwap<T, L>(latest: T, list: L, waiting = false): { rows: T; list: L; fade: SharedValue<number> } {
+  const on = useMotionTrial("chipFade");
+  const fade = useSharedValue(1);
+  const [, render] = useReducer((count: number) => count + 1, 0);
+  const settled = useRef({ rows: latest, list });
+  const newest = useRef({ rows: latest, list });
+  newest.current = { rows: latest, list };
+  if (!on || settled.current.list === list) settled.current = newest.current;
+  const changing = settled.current.list !== list;
+  useEffect(() => {
+    let frame = 0;
+    if (!changing) {
+      // Two frames on, so the new rows are drawn before they start to show.
+      frame = requestAnimationFrame(() => {
+        frame = requestAnimationFrame(() => { fade.value = withTiming(1, ROWS_IN); });
+      });
+    } else if (waiting) {
+      fade.value = withTiming(ROWS_WAITING, ROWS_DIM);
+    } else {
+      fade.value = withTiming(0, ROWS_OUT);
+      // Rendering them starts now, not when the fade ends: by the time they're
+      // ready the old rows have gone, and the screen doesn't sit empty.
+      frame = requestAnimationFrame(() => {
+        settled.current = newest.current;
+        render();
+      });
+    }
+    return () => cancelAnimationFrame(frame);
+  }, [changing, waiting, list, fade]);
+  return { rows: settled.current.rows, list: settled.current.list, fade };
+}
 
 /** The rows that come or go between two lists, by key. */
 export function changedKeys(before: readonly string[], after: readonly string[]): ReadonlySet<string> {

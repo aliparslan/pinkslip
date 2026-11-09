@@ -136,3 +136,35 @@ motion:
   Nov 7 (e352d60, 350c17e) and is on your phone as an owner update.
 - 2.38, the spacing at the bottom of "Keep your saved jobs", is spacing, not
   motion. It's a small fix in code once you say how much room it should have.
+
+## Light and dark, and chips (added Nov 8)
+
+Both were recorded frame by frame before changing them, and both are Kit
+switches: `themeFade` and `chipFade`.
+
+**Theme change.** From You → Appearance most of the app recolored in one frame,
+then anything drawn from JS and the glass bars caught up later, so the screen
+visibly changed in stages. Now a curtain in the new page color fades up (110ms),
+the theme changes under it, it waits for the screens to re-render, then lifts
+(220ms). The wait follows the render rather than a fixed time, because a fixed
+hold let stale icon tiles show on a slow frame. The iPhone's own cross-fade still
+handles a change made in iOS Settings. A true cross-fade inside the app needs a
+native snapshot of the window, so it needs a build.
+
+**Chips.** Jobs lit the chip, sat still for as long as the server took (600ms or
+so), then cut the whole list in one frame. Tracker cut in one frame with no wait.
+A reused row could also show the previous company's logo for a few frames.
+
+A chip is used tens of times a day, so nothing moves:
+
+- The chip lights at once.
+- If the rows have to come from the server, the old ones dim to 40% straight away
+  and stay there, so the tap is answered during the wait.
+- Then the old rows fade out (90ms) and the new ones fade in where they belong
+  (200ms). Rendering starts with the fade-out, not after it, or the screen sits
+  empty for as long as the render takes.
+- Paging, new postings and stage moves are the same list and aren't affected,
+  and typing a search goes straight through.
+
+Timings were recorded on a development bundle. Its JS is several times slower
+than a published one, so the empty moment mid-swap looked longest there.
