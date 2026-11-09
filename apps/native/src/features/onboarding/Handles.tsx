@@ -26,8 +26,10 @@ const HANDLED: readonly Handled[] = [
   { icon: "jobs", meaning: "find", title: "Every job, found for you", line: "Every career page, every hour" },
   { icon: "notifications", meaning: "find", title: "You see them first", line: "As soon as they're posted" },
   { icon: "autoApply", meaning: "pro", title: "Applications, sent for you", line: "You say yes, it's sent", pro: true },
+  { icon: "edit", meaning: "apply", title: "Every form, filled for you", line: "You check it and send it" },
   { icon: "tracker", meaning: "apply", title: "Every application, tracked", line: "Replies update it for you" },
-  { icon: "followUp", meaning: "apply", title: "A nudge to follow up", line: "And who to write to" },
+  // Follow-ups come with outreach, so this waits with the Pro rows.
+  { icon: "followUp", meaning: "apply", title: "A nudge to follow up", line: "And who to write to", pro: true },
   { icon: "email", meaning: "pro", title: "Cold emails, written for you", line: "To the right recruiter", pro: true },
 ];
 

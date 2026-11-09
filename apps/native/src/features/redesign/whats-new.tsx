@@ -27,7 +27,7 @@ export const RELEASES: readonly Release[] = [
     announce: true,
     items: [
       { icon: "today", meaning: "find", title: "Today", line: "What needs you and what's coming, in one place." },
-      { icon: "autoApply", meaning: "pro", title: "Ask first", line: "Strong matches each morning. Pick some, and they're sent for you." },
+      { icon: "edit", meaning: "apply", title: "Fill", line: "Pinkslip fills in the form. You check it and send it." },
       { icon: "offline", meaning: "app", title: "Works offline", line: "Jobs you've already seen stay readable without a connection." },
     ],
   },
