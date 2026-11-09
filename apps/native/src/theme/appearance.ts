@@ -1,10 +1,17 @@
 import { setStatusBarStyle } from "expo-status-bar";
 import { useDeferredValue, useSyncExternalStore } from "react";
 import { AccessibilityInfo, Appearance } from "react-native";
+import { makeMutable, withDelay, withSequence, withTiming } from "react-native-reanimated";
 import { UnistylesRuntime, useUnistyles } from "react-native-unistyles";
 import { storage } from "../platform/storage";
 import { motionTrial } from "../ui/motion-trial";
 import { themes, type AppTheme, type ThemeName } from "./themes";
+
+/** 1 while iOS's glass is still changing over after a theme change. It goes
+ * through gray for about 0.4s, so `GlassThemeCover` stands in until it's done. */
+export const glassChanging = makeMutable(0);
+const GLASS_SETTLES = 380;
+const GLASS_REVEAL = 160;
 
 /** "system" follows iOS; the others pin the app (You → Appearance). */
 export type AppearancePreference = "system" | "light" | "dark";
@@ -36,7 +43,7 @@ function notify() {
   for (const listener of listeners) listener();
 }
 
-function apply() {
+function recolor() {
   const next = themeFor();
   if (UnistylesRuntime.themeName !== next) {
     UnistylesRuntime.setTheme(next);
@@ -46,6 +53,18 @@ function apply() {
   // Native chrome (sheets, menus, the keyboard) follows the pinned scheme too.
   const preference = appearancePreference();
   Appearance.setColorScheme(preference === "system" ? "unspecified" : preference);
+}
+
+let started = false;
+
+function apply() {
+  if (started && UnistylesRuntime.themeName !== themeFor()) {
+    glassChanging.value = withSequence(withTiming(1, { duration: 0 }), withDelay(GLASS_SETTLES, withTiming(0, { duration: GLASS_REVEAL })));
+    // The cover only reaches the screen once this turn of JS is over, and
+    // has to be up before the glass starts changing.
+    requestAnimationFrame(() => requestAnimationFrame(recolor));
+  } else recolor();
+  started = true;
   notify();
 }
 

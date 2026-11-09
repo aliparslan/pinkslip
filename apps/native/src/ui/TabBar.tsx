@@ -12,6 +12,7 @@ import { useTransitionProgress } from "react-native-screens";
 import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { Badge } from "./Badge";
+import { GlassThemeCover } from "./Floating";
 import { TabIcon, type TabIconName } from "./Icon";
 import { motion, project, rubberBand, spring } from "./motion";
 import { useToastLift } from "./Toast";
@@ -544,6 +545,7 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
     <GestureDetector gesture={drag}>
       <Animated.View style={[styles.pillFrame, { bottom, left: (screen - pillWidth) / 2, width: pillWidth }, pillFrame]}>
         <GlassView glassEffectStyle="regular" isInteractive style={[styles.pill, !GLASS && styles.paper]} accessibilityRole="tablist">
+          <GlassThemeCover />
           {selected >= 0 ? <Animated.View pointerEvents="none" style={[styles.oval, oval]} /> : null}
           <View style={styles.tabs}>
             {tabs.map((route, index) => {

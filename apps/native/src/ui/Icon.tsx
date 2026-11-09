@@ -9,8 +9,10 @@ import {
 } from "phosphor-react-native";
 import type { ComponentType } from "react";
 import Svg, { Circle, Path, Rect, type SvgProps } from "react-native-svg";
-import { useUnistyles } from "react-native-unistyles";
+import { View } from "react-native";
+import { StyleSheet, UnistylesRuntime, useUnistyles } from "react-native-unistyles";
 import { TAB_ICON_FILLS, type TabIconName } from "./tab-icons";
+import { themes } from "../theme/themes";
 import type { TextTone } from "./Text";
 
 // Every Phosphor name the shared table uses needs its component here: a
@@ -86,14 +88,22 @@ export function Icon({ name, size = 20, tone = "ink", color: tint, weight = "lin
 }
 
 /** A tab's icon: the same drawing at rest and selected, filled in when
- * selected (tab-icons.ts). */
+ * selected (tab-icons.ts). Drawn once per appearance, with the sheet showing
+ * the current one: they change with the page, where a color handed to the
+ * icon waits for a redraw (owner, Nov 9: pale icons on the bar). */
 export function TabIcon({ name, size = 24, selected }: { name: TabIconName; size?: number; selected: boolean }) {
-  const { theme } = useUnistyles();
-  // Read on every render, resting too: useUnistyles only follows a theme change
-  // for what's been read, and a tab selected later came up in the old theme.
-  const ink = theme.ui.color.ink;
+  const contrast = UnistylesRuntime.themeName === "contrast" || UnistylesRuntime.themeName === "lightContrast";
+  const light = themes[contrast ? "lightContrast" : "light"].ui.color;
+  const dark = themes[contrast ? "contrast" : "dark"].ui.color;
+  return <View style={{ width: size, height: size }}>
+    <View style={[styles.twin, styles.whenLight]}><TabGlyph name={name} size={size} selected={selected} ink={light.ink} rest={light["ink-2"]} /></View>
+    <View style={[styles.twin, styles.whenDark]}><TabGlyph name={name} size={size} selected={selected} ink={dark.ink} rest={dark["ink-2"]} /></View>
+  </View>;
+}
+
+function TabGlyph({ name, size, selected, ink, rest }: { name: TabIconName; size: number; selected: boolean; ink: string; rest: string }) {
   const fill = selected ? TAB_ICON_FILLS[name] : undefined;
-  if (!fill) return <Icon name={name} size={size} tone={selected ? "ink" : "ink-2"} />;
+  if (!fill) return <Icon name={name} size={size} color={selected ? ink : rest} />;
   // The same outline the resting icon adds to Phosphor's regular line.
   const edge = { strokeWidth: LINE * 256 - 16, strokeLinejoin: "round" as const };
   return <Svg width={size} height={size} viewBox="0 0 256 256">
@@ -150,3 +160,9 @@ function CopyMark({ size, color, stroke }: { size: number; color: string; stroke
     <Path d="M6.75 5.75A2.5 2.5 0 0 1 9.25 3.25H14.25A2.5 2.5 0 0 1 16.75 5.75V10.75A2.5 2.5 0 0 1 14.25 13.25" />
   </Svg>;
 }
+
+const styles = StyleSheet.create((theme) => ({
+  twin: { position: "absolute", top: 0, left: 0 },
+  whenLight: { opacity: theme.mode === "light" || theme.mode === "lightContrast" ? 1 : 0 },
+  whenDark: { opacity: theme.mode === "light" || theme.mode === "lightContrast" ? 0 : 1 },
+}));

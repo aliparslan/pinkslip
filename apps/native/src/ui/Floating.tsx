@@ -6,6 +6,7 @@ import { View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
+import { glassChanging } from "../theme/appearance";
 import { motion, timing } from "./motion";
 
 const GLASS = isLiquidGlassAvailable();
@@ -16,6 +17,18 @@ const GLASS = isLiquidGlassAvailable();
  * it, so content showed through them (owner, 2026-10-19). */
 export function Floating({ style, children }: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
   return <GlassView glassEffectStyle="regular" isInteractive style={[styles.root, style, !GLASS && styles.paper]}>{children}</GlassView>;
+}
+
+/** Stands in for glass during a theme change, the first thing inside it: the
+ * two sheet colors that together match glass at rest, so it never shows the
+ * gray iOS goes through (owner, Nov 9). */
+export function GlassThemeCover() {
+  const shown = useAnimatedStyle(() => ({ opacity: glassChanging.value }));
+  if (!GLASS) return null;
+  return <Animated.View pointerEvents="none" style={[styles.cover, shown]}>
+    <View style={[styles.cover, styles.coverBase]} />
+    <View style={[styles.cover, styles.coverTint]} />
+  </Animated.View>;
 }
 
 /** Fine enough to read as a gradient over the bar's short tail. */
@@ -124,5 +137,8 @@ const styles = StyleSheet.create((theme) => ({
   paper: { backgroundColor: theme.ui.color["bg-elev"], boxShadow: theme.ui.shadow.pill, overflow: "visible" },
   fade: { position: "absolute", top: 0, left: 0, right: 0 },
   page: { backgroundColor: theme.ui.color.bg },
+  cover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  coverBase: { backgroundColor: theme.ui.color["bg-elev"] },
+  coverTint: { backgroundColor: theme.ui.color.fill },
   blur: { position: "absolute", top: -BLUR_BLEED, left: -BLUR_BLEED, right: -BLUR_BLEED },
 }));
