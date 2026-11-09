@@ -9,6 +9,7 @@ import "../features/onboarding/launch";
 import { AppProviders } from "../features/shell/AppProviders";
 import { stackOptions } from "../features/shell/stack-options";
 import { setErrorRoute } from "../platform/error-reporting";
+import { ThemeCurtain } from "../theme/ThemeCurtain";
 import "../platform/updates-channel";
 
 export default function RootLayout() {
@@ -33,5 +34,6 @@ export default function RootLayout() {
       </Stack>
     </AppProviders></ThemeProvider>
     <StatusBar style={light ? "dark" : "light"} />
+    <ThemeCurtain />
   </GestureHandlerRootView>;
 }

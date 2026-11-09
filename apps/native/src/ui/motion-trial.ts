@@ -14,7 +14,8 @@ import { storage } from "../platform/storage";
  * (docs/next-five-round-2026-11-08.md).
  */
 export type MotionTrial = "undo" | "sheetFade" | "wheel" | "trackerLoad" | "pdfSettle"
-  | "zoom" | "stampBar" | "stampOffer" | "trackerMove" | "jobsArrive" | "todayZoom" | "zoomLanding";
+  | "zoom" | "stampBar" | "stampOffer" | "trackerMove" | "jobsArrive" | "todayZoom" | "zoomLanding"
+  | "themeFade" | "chipFade";
 
 export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; proposed: string }[] = [
   { id: "undo", title: "Undo brings the job back", today: "It appears in one frame", proposed: "Hide played backwards" },
@@ -31,6 +32,9 @@ export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; pro
   // Lines the page's logo and title up with the row's as it zooms (owner, Nov 8:
   // the page's title landed a row too low, over the next row's text).
   { id: "zoomLanding", title: "Zoom lands on the title", today: "The page's top lands on the row", proposed: "Its logo and title land on the row's" },
+  // The owner asked for these two to be reviewed and workshopped (Nov 8).
+  { id: "themeFade", title: "Light and dark", today: "It cuts, and parts catch up late", proposed: "It fades through the new color" },
+  { id: "chipFade", title: "A chip changes the list", today: "The rows cut over, late on Jobs", proposed: "Rows dim at once, then fade over" },
 ];
 
 const key = (id: MotionTrial) => `kit-motion-${id}`;

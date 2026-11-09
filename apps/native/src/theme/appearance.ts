@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import { AccessibilityInfo, Appearance } from "react-native";
 import { UnistylesRuntime } from "react-native-unistyles";
 import { storage } from "../platform/storage";
+import { motionTrial } from "../ui/motion-trial";
 import type { ThemeName } from "./themes";
 
 /** "system" follows iOS; the others pin the app (You → Appearance). */
@@ -23,19 +24,35 @@ export function themeFor(preference = appearancePreference(), increasedContrast 
   return scheme === "light" ? "light" : "dark";
 }
 
+/** The fade that hides a theme change (ThemeCurtain), while it's mounted. */
+let curtain: ((next: ThemeName, change: () => void) => void) | null = null;
+
+export function setThemeCurtain(play: typeof curtain) {
+  curtain = play;
+}
+
+function notify() {
+  for (const listener of listeners) listener();
+}
+
 function apply() {
   const next = themeFor();
   if (UnistylesRuntime.themeName !== next) UnistylesRuntime.setTheme(next);
   // Native chrome (sheets, menus, the keyboard) follows the pinned scheme too.
   const preference = appearancePreference();
   Appearance.setColorScheme(preference === "system" ? "unspecified" : preference);
-  for (const listener of listeners) listener();
+  notify();
 }
 
 export function setAppearancePreference(preference: AppearancePreference) {
   if (preference === "system") storage.remove(KEY);
   else storage.set(KEY, preference);
-  apply();
+  const next = themeFor();
+  if (curtain && motionTrial("themeFade") && UnistylesRuntime.themeName !== next) {
+    // The picker answers now; the colors change once they're covered.
+    notify();
+    curtain(next, apply);
+  } else apply();
 }
 
 export function useAppearancePreference(): AppearancePreference {
