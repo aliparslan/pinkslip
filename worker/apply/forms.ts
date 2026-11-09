@@ -200,6 +200,11 @@ export function applicationUrl(source: FormSource): string | null {
   // Lever's posting only links to its form, one page further on. Pinkslip
   // doesn't prepare its questions, but the phone reads and fills the page.
   if (source.ats === "lever") return `https://jobs.lever.co/${slug}/${id}/apply`;
+  // Oracle's posting has an Apply button that opens this same address.
+  if (source.ats === "oracle") {
+    const [host, site] = source.slug.split("/");
+    return `https://${host}/hcmUI/CandidateExperience/en/sites/${site}/job/${id}/apply/email`;
+  }
   return null;
 }
 

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 import { normalizeOracleSource, OracleAdapter } from "@worker/adapters/oracle";
+import { applicationUrl } from "@worker/apply/forms";
 
 const realFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = realFetch; });
@@ -104,5 +105,12 @@ describe("OracleAdapter", () => {
     expect(calls[0]).toContain("finder=ById;Id=%2277%22,siteNumber=CX_1");
     expect(content.description).toContain("Own services.");
     expect(content.salary).toContain("120,000");
+  });
+});
+
+describe("applying on Oracle", () => {
+  it("opens the application itself, a step past the posting", () => {
+    expect(applicationUrl({ ats: "oracle", slug: "jpmc.fa.oraclecloud.com/CX_1001", externalId: "210762543" }))
+      .toBe("https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/210762543/apply/email");
   });
 });
