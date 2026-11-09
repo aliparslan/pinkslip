@@ -12,6 +12,7 @@ import {
   ensureUserEvergreenMatchesReady,
   ensureUserJobMatches,
   ensureUserJobMatchesReady,
+  keepWarmingUserJobMatches,
   matchJobsForNotifiableProfiles,
   MATCHER_VERSION,
   prepareJobsForMatching,
@@ -600,5 +601,36 @@ describe("solutions roles", () => {
   it("reach only people who chose them", () => {
     expect(evaluateJobForProfile("solutions", listing, features, withRoles(["software_engineering", "forward_deployed"])).plausible).toBe(false);
     expect(evaluateJobForProfile("solutions", listing, features, withRoles(["solutions"])).plausible).toBe(true);
+  });
+});
+
+describe("keepWarmingUserJobMatches", () => {
+  const db = {} as D1Database;
+
+  it("keeps going until nothing is left", async () => {
+    const left = [[1], [2], [3], []];
+    let calls = 0;
+    await keepWarmingUserJobMatches(db, "warm-until-empty", { ensure: async () => { calls += 1; return left.shift()!; } });
+    expect(calls).toBe(4);
+  });
+
+  it("stops at its time limit, for the next pass to carry on", async () => {
+    let clock = 0;
+    let calls = 0;
+    await keepWarmingUserJobMatches(db, "warm-time-limit", {
+      now: () => clock,
+      ensure: async () => { calls += 1; clock += 15_000; return [1]; },
+    });
+    expect(calls).toBe(2);
+  });
+
+  it("leaves a user alone for a while after a pass", async () => {
+    let calls = 0;
+    const ensure = async () => { calls += 1; return []; };
+    await keepWarmingUserJobMatches(db, "warm-again", { ensure, now: () => 1_000 });
+    await keepWarmingUserJobMatches(db, "warm-again", { ensure, now: () => 2_000 });
+    expect(calls).toBe(1);
+    await keepWarmingUserJobMatches(db, "warm-again", { ensure, now: () => 1_000 + 5 * 60_000 });
+    expect(calls).toBe(2);
   });
 });

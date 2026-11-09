@@ -401,6 +401,39 @@ export async function ensureUserJobMatches(db: D1Database, userId: string, jobId
   return matches;
 }
 
+/** One pass reaches every open job at 750 a batch, with room to spare. */
+const WARM_BATCHES = 40;
+/** Well inside the time Workers allow after the response has gone. */
+const WARM_FOR_MS = 20_000;
+/** How long this isolate leaves a user alone before looking again. */
+const WARM_AGAIN_AFTER_MS = 5 * 60_000;
+const warmedAt = new Map<string, number>();
+
+/**
+ * Fills in the rest of a user's matches behind the feed. The feed itself only
+ * waits for the first 25, so after anything that resets the list (a new
+ * MATCHER_VERSION, or a saved search changing) older jobs would otherwise stay
+ * missing. Each batch moves the stored cursor on, so a pass that's cut short
+ * carries on from there next time. Run it after the response.
+ */
+export async function keepWarmingUserJobMatches(
+  db: D1Database,
+  userId: string,
+  { ensure = ensureUserJobMatches, now = Date.now }: {
+    ensure?: (db: D1Database, userId: string) => Promise<unknown[]>;
+    now?: () => number;
+  } = {}
+) {
+  const started = now();
+  const last = warmedAt.get(userId);
+  if (last !== undefined && started - last < WARM_AGAIN_AFTER_MS) return;
+  if (warmedAt.size > 5000) warmedAt.clear();
+  warmedAt.set(userId, started);
+  for (let batch = 0; batch < WARM_BATCHES && now() - started < WARM_FOR_MS; batch++) {
+    if ((await ensure(db, userId)).length === 0) return;
+  }
+}
+
 export async function ensureUserJobMatchesReady(
   db: D1Database,
   userId: string,

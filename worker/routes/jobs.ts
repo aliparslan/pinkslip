@@ -5,6 +5,7 @@ import { getAdapter } from "../ats";
 import {
   ensureUserEvergreenMatchesReady,
   ensureUserJobMatchesReady,
+  keepWarmingUserJobMatches,
   ensureUserJobMatches,
   invalidateJobMatches,
   MATCHER_VERSION,
@@ -398,6 +399,11 @@ jobs.get("/", async (c) => {
     await ensureUserEvergreenMatchesReady(c.env.DB, userId);
   } else if (firstPage && !everyJob) {
     await ensureUserJobMatchesReady(c.env.DB, userId);
+    c.executionCtx.waitUntil(
+      keepWarmingUserJobMatches(c.env.DB, userId).catch((error) => {
+        console.error("Warming job matches failed:", error);
+      })
+    );
   }
 
   const parsedLimit = parseInt(limit ?? "300", 10);
