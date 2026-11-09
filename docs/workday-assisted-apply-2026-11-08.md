@@ -37,14 +37,14 @@ by company: NVIDIA's How Did You Hear has Website then NVIDIA.COM.
 
 ## What works, and what isn't known
 
-- A real click or the keyboard works a dropdown: focus, Space, arrows, Return.
-- A script's `.click()` presses Add and opens the menus, but did nothing on a
-  menu item, which needed a real click.
-- **Not tested:** whether a script can pick a dropdown option with dispatched
-  pointer events. The test was blocked by the tool's safety check. This is the
-  main risk, because the assisted browser fills by injected script, which
-  can't produce real clicks or keys. If it fails, dropdowns need a native tap
-  or stay the person's to answer.
+- **Dropdowns work by script.** `.click()` on the button opens the list, and
+  `.click()` on an `li[role=option]` picks it and closes it. Tested once on
+  NVIDIA's gender question, picking Decline to State, not saved.
+- A script's `.click()` also presses Add, Save and Continue, and opens the
+  menus.
+- **Menus are the open risk.** `.click()` did nothing on a How Did You Hear
+  category, which needed a real click. Dispatched pointer events haven't been
+  tried. If they fail, menus stay the person's to answer.
 - Reader output on the real signed-in page wasn't run. The table is from the
   page's markup and the reader's code.
 
@@ -59,10 +59,11 @@ learning.
 
 ## Proposed order
 
-1. Test picking a dropdown option by script. Everything below depends on it.
-2. Fill again when the step changes. The loop's `watch` only starts a pass
+1. Fill again when the step changes. The loop's `watch` only starts a pass
    until a form has been shown (`!formShown`), so later pages get nothing.
-3. Read dropdowns and menus as questions, opening each once for its options.
+2. Read dropdowns as questions, opening each once for its options, and fill
+   them by script.
+3. Try dispatched pointer events on the menus, or leave them to the person.
 4. Give dates a real label from their section.
 5. Open assisted apply at `<posting>/apply/applyManually`, so the person lands
    on sign-in. Passwords and the Terms box stay theirs.
