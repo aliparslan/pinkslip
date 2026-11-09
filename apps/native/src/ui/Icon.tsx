@@ -7,7 +7,7 @@ import {
   Warning, WarningCircle, Wrench, X, XCircle,
   type Icon as PhosphorIcon, type IconProps as PhosphorProps,
 } from "phosphor-react-native";
-import type { ComponentType } from "react";
+import type { ComponentType, ReactElement } from "react";
 import Svg, { Circle, Path, Rect, type SvgProps } from "react-native-svg";
 import { useUnistyles } from "react-native-unistyles";
 import type { TextTone } from "./Text";
@@ -82,6 +82,44 @@ export function Icon({ name, size = 20, tone = "ink", color: tint, weight = "lin
   }
   const [base, perPoint] = LINE_WEIGHTS.find(([, perPoint]) => size * perPoint <= line) ?? LINE_WEIGHTS[3];
   return <Glyph size={size} weight={base} color={color} {...outline((line - size * perPoint) * (256 / size))} />;
+}
+
+/** The five tab icons. */
+export type TabIconName = Extract<IconName, "today" | "jobs" | "tracker" | "search" | "you">;
+
+/** A selected tab, solid and in ink (owner, 2026-11-08). Phosphor's fills read
+ * oddly at this size, so these five are drawn for Pinkslip on Phosphor's 256
+ * grid (Paper, Today tab, "Icon sets"). Plain shapes, no masks. */
+const LIT_TABS: Record<TabIconName, (color: string) => ReactElement> = {
+  today: (color) => <>
+    <Path fill={color} d="M32 94V74A30 30 0 0 1 62 44V60A20 20 0 0 0 102 60V44H154V60A20 20 0 0 0 194 60V44A30 30 0 0 1 224 74V94Z" />
+    <Path fill={color} d="M32 108H224V194A30 30 0 0 1 194 224H62A30 30 0 0 1 32 194Z" />
+    <Rect fill={color} x={72} y={18} width={20} height={54} rx={10} />
+    <Rect fill={color} x={164} y={18} width={20} height={54} rx={10} />
+  </>,
+  jobs: (color) => <>
+    <Path d="M88 80V58a26 26 0 0 1 26-26h28a26 26 0 0 1 26 26V80" fill="none" stroke={color} strokeWidth={18} />
+    <Path fill={color} d="M24 130V98A26 26 0 0 1 50 72H206A26 26 0 0 1 232 98V130H158V124A12 12 0 0 0 146 112H110A12 12 0 0 0 98 124V130Z" />
+    <Path fill={color} d="M24 142H98V146A12 12 0 0 0 110 158H146A12 12 0 0 0 158 146V142H232V194A26 26 0 0 1 206 220H50A26 26 0 0 1 24 194Z" />
+    <Rect fill={color} x={110} y={122} width={36} height={26} rx={7} />
+  </>,
+  tracker: (color) => <>
+    {/* The back bookmark is only the part the front one, and a gap, leave showing. */}
+    <Path fill={color} d="M87.18 41A25 25 0 0 1 112 19H192A25 25 0 0 1 217 44V192A5 5 0 0 1 209.32 196.22L183 179.55V76A35 35 0 0 0 148 41Z" />
+    <Path fill={color} stroke={color} strokeWidth={10} strokeLinejoin="round" d="M48 76A20 20 0 0 1 68 56H148A20 20 0 0 1 168 76V224L108 186L48 224Z" />
+  </>,
+  search: (color) => <>
+    <Circle cx={112} cy={112} r={74} fill="none" stroke={color} strokeWidth={28} />
+    <Path d="M168 168L222 222" fill="none" stroke={color} strokeWidth={28} strokeLinecap="round" />
+  </>,
+  you: (color) => <Path fill={color} fillRule="evenodd"
+    d="M51.4 204.13A108 108 0 1 1 204.6 204.13A80 62 0 0 0 51.4 204.13ZM88 104a40 40 0 1 0 80 0a40 40 0 1 0-80 0Z" />,
+};
+
+/** A selected tab's icon. At rest a tab uses the ordinary `Icon`. */
+export function LitTabIcon({ name, size = 24 }: { name: TabIconName; size?: number }) {
+  const { theme } = useUnistyles();
+  return <Svg width={size} height={size} viewBox="0 0 256 256">{LIT_TABS[name](theme.ui.color.ink)}</Svg>;
 }
 
 /** "Pinkslip does it for you" (B2, owner 2026-10-14; Paper System, Parts):

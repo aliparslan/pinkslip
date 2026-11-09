@@ -144,7 +144,7 @@ export function SectionHeader({ title, count, needsYou, leading, onPress, first 
   const tone = needsYou ? "accent" : "ink";
   const label = count === undefined ? title : `${title}, ${count}`;
   const content = <>
-    {leading}
+    {leading ? <View style={styles.sectionLeading}>{leading}</View> : null}
     <View style={styles.sectionLabel}>
       <Text role="section" tone={tone} flex>{title}</Text>
       {count !== undefined ? <Text role="section" tone={tone}>{String(count)}</Text> : null}
@@ -201,6 +201,9 @@ const styles = StyleSheet.create((theme) => ({
     paddingBottom: theme.ui.space["2"],
   },
   sectionFirst: { paddingTop: theme.ui.space["4"] },
+  // One width for every stage's mark, so the labels start on one line and
+  // the ring's edge sits on the margin (its box has 2 of air each side).
+  sectionLeading: { width: 20, marginLeft: -2, alignItems: "center" },
   sectionLabel: { flex: 1, flexDirection: "row", alignItems: "baseline", gap: theme.ui.space["1"] },
   // Centred on the text rather than its baseline.
   sectionChevron: { alignSelf: "center" },

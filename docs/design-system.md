@@ -142,7 +142,7 @@ else is decided.
   inside it, so the thumb is 32, a chip's height (owner, 2026-10-13: 2
   inside looked cramped and was off the 4 scale). A segment can carry its
   count, as chips do (the company page's Jobs).
-- **Tab bar:** the selected tab sits in a soft oval with its icon filled
+- **Tab bar:** the selected tab sits in a soft oval with its solid icon
   in ink (see Icons).
 - **Which side the selection circle sits** (owner, 2026-10-15): on the
   left in a select mode over a list (Jobs' select, as Mail does); on the
@@ -293,9 +293,12 @@ on one line share a size.
 - **Staying with Phosphor** (owner, 2026-10-14): Lucide was ruled out as
   overused. When Phosphor's glyph doesn't hold up at our sizes, we draw our
   own on its grid rather than switch packs.
-- **The selected tab** is its filled icon in `ink`, on the gray oval (owner,
-  2026-11-08: no more pink here, and filled when selected; Paper "The whole
-  bar · calendar and bookmarks"). Only the count is pink.
+- **The selected tab** is a solid icon in `ink`, on the gray oval (owner,
+  2026-11-08: no more pink here). Phosphor's fills read oddly at 24 (the
+  bookmarks' back stroke, the ring round the profile), so these five are
+  drawn for Pinkslip on its 256 grid: `LitTabIcon` in `ui/Icon.tsx`, Paper
+  "Icon sets, resting and selected". At rest a tab is still Phosphor. Only
+  the count is pink.
   The tabs are Today (the plain calendar), Jobs, Tracker (the stacked
   bookmarks, as the website's Library), Search and You (the user circle), 56
   apart; the 64 × 46 oval is wider than that (owner, 2026-10-15).
@@ -754,7 +757,8 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     10 apart and 10 from the screen's edge. Apple's colours, `swipe-*` in
     tokens.ts: Read and Unread blue, Applied green, Queue purple (owner:
     purple, not indigo), Hide, Unsave and Not applied gray; Save keeps
-    `accent-fill`. They replace the tinted pills with the label inside
+    `accent-fill`. Glyphs are 22, the bot 27: its head fills less of its
+    square, so it weighs the same (owner, 2026-11-08). They replace the tinted pills with the label inside
     (2026-11-04), whose tints the owner found odd.
   - A full swipe stretches the outer capsule toward the row; its outer end
     stays in its slot (owner, 2026-11-08: only the row's side grows). As it
@@ -846,7 +850,8 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     in the tab bar's `above` slot, so it comes and goes with the bar and
     lists and toasts make room. One application counts its fields
     ("Applying to Toast 11 of 17"), several count applications ("3 of
-    9"); the fill is gray. A job that needs you takes it over with its
+    9"); the fill and the bot are Queue's purple (owner, 2026-11-08;
+    `queue-fill`, soft enough to read the words over). A job that needs you takes it over with its
     logo, a pink dot and its action (Answer, Enter, Finish), which opens
     the job's sheet. Done ("3 sent · 2 confirmed so far", or "Sent to
     Toast · Confirmed") stays 4 seconds. Tap for the queue: Now, Up next,

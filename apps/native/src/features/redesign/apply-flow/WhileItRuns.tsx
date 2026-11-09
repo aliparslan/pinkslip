@@ -26,7 +26,7 @@ export interface LiveJob {
 
 /** What the live bar says (Paper "4 · While it runs", 4.3). */
 export type LiveState =
-  /** "Applying to Ramp 3 of 9": the bar fills, gray, as the run does. */
+  /** "Applying to Ramp 3 of 9": the bar fills, purple, as the run does. */
   | { kind: "sending"; company: string; count: string; share: number }
   | { kind: "paused"; count: string; share: number }
   /** One job needs you; the rest keep going, and `detail` says how many.
@@ -46,7 +46,7 @@ export interface LiveQueue {
 
 /**
  * 4.1, the live bar: a slim pill above the tab bar on every tab, the bot mark
- * in a white circle, what it's doing and how far, one solid gray bar filling
+ * in a white circle, what it's doing and how far, one solid purple bar filling
  * behind it, and, once sends can pause, a round pause. Tapping it opens the
  * queue. Its place is the tab bar's `above` slot.
  */
@@ -62,6 +62,7 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, on
   onStop?: () => void;
   onOpenJob?: (job: LiveJob) => void;
 }) {
+  const { theme } = useUnistyles();
   const [open, setOpen] = useState(false);
   // SENT comes down onto what the bar said while sending, and the bar turns
   // to the job under it as it lands (Paper "Signature moments · Nov 8", 2).
@@ -106,7 +107,7 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, on
           ? <Animated.View key="after" entering={SWAP_IN} style={styles.done}>
             {state.job
               ? <View style={styles.markSlot}><CompanyLogo name={state.job.company} uri={logoUri(state.job.domain ?? null)} size="card" /></View>
-              : <View style={styles.mark}><Icon name="autoApply" size={18} tone="ink" /></View>}
+              : <View style={styles.mark}><Icon name="autoApply" size={18} color={theme.ui.color["swipe-queue"]} /></View>}
             <View style={styles.flex}>
               <Text role="subhead" weight="medium" lines={1}>{state.job ? state.job.title : `${state.count ?? 0} applications`}</Text>
               <Text role="footnote" tone="ink-2" lines={1}>{state.job ? [state.job.company, state.detail].filter(Boolean).join(" · ") : state.detail ?? ""}</Text>
@@ -118,7 +119,7 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, on
                 <CompanyLogo name={shown.company} uri={logoUri(shown.domain ?? null)} size="card" />
                 <View style={styles.dot} />
               </View>
-              : <View style={styles.mark}><Icon name={shown.kind === "done" ? "done" : "autoApply"} size={18} tone={shown.kind === "done" ? "good" : "ink"} /></View>}
+              : <View style={styles.mark}>{shown.kind === "done" ? <Icon name="done" size={18} tone="good" /> : <Icon name="autoApply" size={18} color={theme.ui.color["swipe-queue"]} />}</View>}
             <View style={styles.flex}>
               <Text role="subhead" lines={1}>
                 <Text role="subhead" weight="medium">{shown.kind === "sending" ? `Applying to ${shown.company}`
@@ -230,7 +231,7 @@ const styles = StyleSheet.create((theme) => ({
   flex: { flex: 1, minWidth: 0 },
   bar: { height: LIVE_BAR_HEIGHT, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: 9, borderRadius: 27, overflow: "hidden" },
   paper: { backgroundColor: theme.ui.color["bg-elev"], boxShadow: theme.ui.shadow.pill },
-  fill: { position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: theme.ui.color.fill },
+  fill: { position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: theme.ui.color["queue-fill"] },
   mark: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color["bg-grouped"] },
   markSlot: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
   done: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },

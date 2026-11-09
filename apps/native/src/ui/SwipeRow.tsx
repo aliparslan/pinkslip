@@ -68,8 +68,10 @@ function swipeColor(tone: SwipeTone, color: Record<string, string>): string {
 
 /** The glyph a swipe draws: filled, as Mail's are, except Applied's check,
  * a heavy line (a filled check-circle read as a badge). */
-function swipeGlyph(icon: IconName): { name: IconName; weight: "line" | "fill"; stroke?: number } {
+function swipeGlyph(icon: IconName): { name: IconName; weight: "line" | "fill"; stroke?: number; size?: number } {
   if (icon === "applied") return { name: "done", weight: "line", stroke: 2.9 };
+  // The bot's head fills less of its square than the others (owner, 2026-11-08).
+  if (icon === "autoApply") return { name: icon, weight: "fill", size: 27 };
   return { name: icon, weight: "fill" };
 }
 
@@ -416,7 +418,7 @@ function Pill({ action, index, side, width: own, near, reveal, x, fill, hush, on
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={action.label} style={StyleSheet.absoluteFill}>
       <View style={[styles.capsule, { backgroundColor: solid }]}>
         <Animated.View style={[styles.glyph, { width: own }, anchor, pop]}>
-          <Icon name={glyph.name} weight={glyph.weight} stroke={glyph.stroke} size={PILL_ICON} tone="accent-ink" />
+          <Icon name={glyph.name} weight={glyph.weight} stroke={glyph.stroke} size={glyph.size ?? PILL_ICON} tone="accent-ink" />
         </Animated.View>
       </View>
       <RNText style={[styles.label, { width: own + PILL_GAP }, side === "trailing" ? styles.labelLeft : styles.labelRight]}
@@ -433,7 +435,7 @@ export function SwipeButton({ action }: { action: Pick<SwipeAction, "label" | "i
   const glyph = swipeGlyph(action.icon);
   return <View style={styles.still}>
     <View style={[styles.stillCapsule, { backgroundColor: swipeColor(action.tone, theme.ui.color as unknown as Record<string, string>) }]}>
-      <Icon name={glyph.name} weight={glyph.weight} stroke={glyph.stroke} size={PILL_ICON} tone="accent-ink" />
+      <Icon name={glyph.name} weight={glyph.weight} stroke={glyph.stroke} size={glyph.size ?? PILL_ICON} tone="accent-ink" />
     </View>
     <RNText style={[styles.label, styles.stillLabel]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{action.label}</RNText>
   </View>;

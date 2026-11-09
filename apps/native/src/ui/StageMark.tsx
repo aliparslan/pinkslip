@@ -6,7 +6,8 @@ import type { TextTone } from "./Text";
 
 export interface StageMarkProps {
   stage: StageMarkKind;
-  /** 14 beside small text, 20 in a sheet (beside the 24 check). */
+  /** 14 beside small text, 18 beside a section's name, 20 in a sheet (beside
+   * the 24 check). */
   size?: number;
   /** Saved's and Applied's grey. The stages where something's happening keep
    * their color, and the endings are ink-3. */
@@ -42,7 +43,9 @@ const ENDINGS: readonly StageMarkKind[] = ["closed", "rejected", "withdrawn", "g
 export function StageMark({ stage, size = 14, tone = "ink-2" }: StageMarkProps) {
   const { theme } = useUnistyles();
   const ending = ENDINGS.includes(stage);
-  if (stage === "saved") return <Icon name="saved" size={size - 1} tone={tone} />;
+  // The bookmark's drawing is narrower than the ring, so beside a section's
+  // name it's drawn larger to stand as tall.
+  if (stage === "saved") return <Icon name="saved" size={size === 18 ? 20 : size - 1} tone={tone} />;
   if (stage === "ghosted") return <Icon name="ghosted" size={size} tone="ink-3" />;
   const color = stage === "assessment" ? theme.ui.color["stage-assessment"]
     : stage === "interview" ? theme.ui.color["stage-interview"]

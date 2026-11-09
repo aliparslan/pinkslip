@@ -177,7 +177,7 @@ export function TrackerScreen({ initialView = "all", sample }: { initialView?: T
       contentInsetAdjustmentBehavior="automatic" style={styles.fill} contentContainerStyle={{ paddingBottom: tabSpace }}
       ListHeaderComponent={header}
       renderItem={({ item, index }) => <Animated.View entering={entering}>{item.kind === "stage"
-        ? <SectionHeader title={stageGroupLabels[item.group]} count={item.count} leading={<StageMark stage={item.group} size={16} />}
+        ? <SectionHeader title={stageGroupLabels[item.group]} count={item.count} leading={<StageMark stage={item.group} size={18} />}
           onPress={() => setView(item.group)} first={index === 0} />
         : item.kind === "section"
         ? <SectionHeader title={item.title} count={item.count} first={index === 0} />

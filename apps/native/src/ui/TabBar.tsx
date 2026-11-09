@@ -12,7 +12,7 @@ import { useTransitionProgress } from "react-native-screens";
 import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { Badge } from "./Badge";
-import { Icon, type IconName } from "./Icon";
+import { Icon, LitTabIcon, type TabIconName } from "./Icon";
 import { motion, project, rubberBand, spring } from "./motion";
 import { useToastLift } from "./Toast";
 
@@ -36,7 +36,7 @@ const GLASS = isLiquidGlassAvailable();
 /** The tabs the bar knows (their order is the layout's: Today, Jobs,
  * Tracker, Search, You); routes it doesn't know stay hidden. The name is for
  * VoiceOver only. */
-const TABS: Record<string, { icon: IconName; label: string }> = {
+const TABS: Record<string, { icon: TabIconName; label: string }> = {
   "(today)": { icon: "today", label: "Today" },
   "(jobs)": { icon: "jobs", label: "Jobs" },
   "(library)": { icon: "tracker", label: "Tracker" },
@@ -548,10 +548,10 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
                 accessibilityLabel={badge ? `${tab.label}, ${badge} need you` : tab.label}
                 accessibilityState={{ selected: index === selected }} style={styles.slot}>
                 <View>
-                  {/* The outline icon; selected, it's filled in ink (owner, 2026-11-08:
-                      no more pink here), a touch heavier, and swaps as the oval passes. */}
+                  {/* The outline icon; selected, Pinkslip's own solid drawing in ink
+                      (owner, 2026-11-08), which swaps in as the oval passes. */}
                   {index === lit
-                    ? <Icon name={tab.icon} size={ICON} tone="ink" lit weight="fill" />
+                    ? <LitTabIcon name={tab.icon} size={ICON} />
                     : <Icon name={tab.icon} size={ICON} tone="ink-2" />}
                   {/* The count rides on the icon's top right (System, the tab bar part). */}
                   {badge ? <View style={styles.badge} pointerEvents="none"><Badge count={badge} /></View> : null}

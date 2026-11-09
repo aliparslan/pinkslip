@@ -29,14 +29,14 @@ const RESIZE = timing(motion.sheet.resize);
  * (flow run 4.10; Paper "2 · Steps in a sheet fade", 2026-11-08). Size
  * first, then the step (owner, 2026-11-08: the edge travelling over a step
  * that was already there read as sliding): the empty sheet takes its new
- * height in 150ms, then the step fades in over 150ms, coming 8 from the way
- * you're going. The step you leave goes at once (Reanimated draws a leaving
+ * height in 150ms, then the step fades in over 150ms, where it stands
+ * (owner, 2026-11-08: a step drifting in from the side read as weird, and a
+ * step without a direction always drifted from the left). The step you leave goes at once (Reanimated draws a leaving
  * view under the one arriving, so a fade-out never showed). Kit → Motion
  * fixes compares it with the slide. */
 const FADE_OUT = timing({ duration: 100, curve: [0.23, 1, 0.32, 1] });
 const STEP_SIZE = timing({ duration: 150, curve: [0.23, 1, 0.32, 1] });
 const STEP_IN = timing({ duration: 150, curve: [0.23, 1, 0.32, 1] });
-const FADE_SHIFT = 8;
 /** Steps this close in height swap without waiting for the size. */
 const SAME_HEIGHT = 4;
 /** Let go past this share of the sheet's height, or flick down faster than
@@ -369,8 +369,6 @@ function StepCard({ inner, grabber, children }: { inner: boolean; grabber: boole
   const [layer] = useState(() => fade ? -order.current++ : 0);
   const height = useSharedValue(fades ? cardHeight.value : 0);
   const shown = useSharedValue(fades ? 0 : 1);
-  const [from] = useState(() => (travel.value !== 0 ? travel.value : side) * FADE_SHIFT);
-  const shift = useSharedValue(fades ? from : 0);
   const sized = useRef(false);
   // Its first height is set at once; later ones (a list loading in) ease.
   // A fading step first takes its size, from the height of the one before,
@@ -382,7 +380,6 @@ function StepCard({ inner, grabber, children }: { inner: boolean; grabber: boole
       height.value = withTiming(next, STEP_SIZE);
       const wait = resizes ? STEP_SIZE.duration : 0;
       shown.value = withDelay(wait, withTiming(1, STEP_IN));
-      shift.value = withDelay(wait, withTiming(0, STEP_IN));
     } else {
       height.value = sized.current ? withTiming(next, RESIZE) : next;
     }
@@ -390,7 +387,7 @@ function StepCard({ inner, grabber, children }: { inner: boolean; grabber: boole
     measure(next);
   };
   const card = useAnimatedStyle(() => ({ height: height.value }));
-  const content = useAnimatedStyle(() => ({ opacity: shown.value, transform: [{ translateX: shift.value }] }));
+  const content = useAnimatedStyle(() => ({ opacity: shown.value }));
   return <Animated.View entering={initial || fade ? undefined : arriving(side, travel, width)} exiting={fade ? fadingOut() : leaving(side, travel, width)}
     style={[styles.card, { zIndex: layer }, card]}>
     {/* The content stands on the card's bottom edge, so it holds still while the card grows. */}
