@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, View, type LayoutChangeEvent } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
 import { StageMark } from "./StageMark";
@@ -35,6 +35,8 @@ export interface JobRowProps {
   quiet?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
+  /** A zoom out of the row needs its height (RowZoom). */
+  onLayout?: (event: LayoutChangeEvent) => void;
   /** The row's menu again, for VoiceOver's actions rotor. */
   actions?: { id: string; label: string; run: () => void }[];
 }
@@ -57,7 +59,7 @@ export const LastInSection = createContext(false);
  * and separators start on the 68 line. Tracker's row makes the company the
  * headline and Today's the news, three lines of one line each, 84 tall.
  */
-export function JobRow({ title, company, facts, age, stage, unread: newToYou, headline, needsYou = false, logo, leading, factsBad, quiet, onPress, onLongPress, actions }: JobRowProps) {
+export function JobRow({ title, company, facts, age, stage, unread: newToYou, headline, needsYou = false, logo, leading, factsBad, quiet, onPress, onLongPress, onLayout, actions }: JobRowProps) {
   const tracker = headline === "company";
   const news = headline === "news";
   const unread = newToYou && !tracker && !news;
@@ -77,7 +79,7 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
   // The highlight waits 150ms, as iOS lists do, and a row being swiped
   // neither highlights nor opens.
   return <Pressable collapsable={false} unstable_pressDelay={150} accessibilityRole="button" accessibilityLabel={label}
-    onPress={swiping ? undefined : onPress} onLongPress={swiping ? undefined : onLongPress}
+    onPress={swiping ? undefined : onPress} onLongPress={swiping ? undefined : onLongPress} onLayout={onLayout}
     accessibilityActions={actions?.map((action) => ({ name: action.id, label: action.label }))}
     onAccessibilityAction={(event) => actions?.find((action) => action.id === event.nativeEvent.actionName)?.run()}
     style={({ pressed }) => [styles.row, titleFirst && styles.compact, inCard && styles.clear, pressed && !swiping && styles.pressed]}>
