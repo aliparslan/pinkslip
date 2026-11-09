@@ -145,6 +145,26 @@ describe("answers routes", () => {
 });
 
 describe("up-front answers when filling a page", () => {
+  it("never keep or fill a password or a government number, whatever sends them", async () => {
+    const { env, sqlite } = await answersDb();
+    const secrets = [
+      control("p", "text", "Password", { value: "hunter2" }),
+      control("c", "text", "Confirm Password", { value: "hunter2" }),
+      control("s", "text", "Social Security Number", { value: "123-45-6789" }),
+    ];
+    expect(await learnAnswers(env.DB, "user-1", secrets)).toBe(0);
+    expect(sqlite.query("SELECT count(*) AS n FROM application_answers").get()).toEqual({ n: 0 });
+    const plan = await planApplication(env, "user-1", { jobId: null, controls: [...secrets, control("r", "radio", "Are you willing to relocate?", { options: ["Yes", "No"] })] }, undefined);
+    expect([...plan.needs.map((need) => need.ref), ...plan.steps.map((step) => step.ref)]).toEqual(["r"]);
+  });
+
+  it("still asks ordinary questions that sound close", async () => {
+    const { env } = await answersDb();
+    const passport = [control("v", "radio", "Do you have a valid passport?", { options: ["Yes", "No"] })];
+    const plan = await planApplication(env, "user-1", { jobId: null, controls: passport }, undefined);
+    expect(plan.needs.map((need) => need.ref)).toEqual(["v"]);
+  });
+
   it("fill a shared question directly", async () => {
     const { env } = await answersDb();
     const relocate = [control("r", "radio", "Are you willing to relocate?", { options: ["Yes", "No"] })];

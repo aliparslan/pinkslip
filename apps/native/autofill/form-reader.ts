@@ -201,6 +201,9 @@ export function readForm(): FormControl[] {
     const input = element as HTMLInputElement;
     const type = (input.type || "text").toLowerCase();
     if (type === "hidden" || type === "submit" || type === "button" || type === "image" || type === "reset") continue;
+    // A password is the person's own: never read, so it can't reach a plan or
+    // the answer bank (Workday puts a sign-in in front of every application).
+    if (type === "password") continue;
     if (input.name === "g-recaptcha-response" || input.id.startsWith("g-recaptcha") || input.closest(".iti__dropdown-content")) continue;
     if (type === "radio") {
       const group = radiosByName.get(input.name) ?? [];
@@ -247,6 +250,8 @@ export function readForm(): FormControl[] {
     if (/signature/i.test(input.getAttribute("name") ?? "")) continue;
     const label = labelFor(input);
     if (!label.text) continue;
+    // Workday's trap, "This input is for robots only": a person leaves it.
+    if (/for robots only/i.test(label.text)) continue;
 
     if (element instanceof HTMLSelectElement) {
       const options = [...element.options].filter((option) => option.value !== "").map((option) => clean(option.textContent));

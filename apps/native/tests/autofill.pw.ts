@@ -189,3 +189,20 @@ test("says when Submit brings up a box for an emailed code, without the whole wa
   expect(report.status).toBe("code");
   expect(Date.now() - started).toBeLessThan(3_000);
 });
+
+/** The email sign-in in front of a Workday application, field for field from
+ * NVIDIA's: a password box, and a text field only a bot would fill. */
+const WORKDAY_SIGN_IN = `<!doctype html><html><body><form>
+  <label for="email">Email Address*</label><input id="email" data-automation-id="email" type="text" aria-required="true">
+  <label for="password">Password*</label><input id="password" data-automation-id="password" type="password" aria-required="true" value="hunter2">
+  <label for="trap">Enter website. This input is for robots only, do not enter if you're human.</label><input id="trap" data-automation-id="beecatcher" type="text">
+  <button type="submit">Sign In</button>
+</form></body></html>`;
+
+test("never reads a password, or Workday's field for robots", async ({ page }) => {
+  await page.route("https://nvidia.example.com/**", (route) => route.fulfill({ contentType: "text/html", body: WORKDAY_SIGN_IN }));
+  await page.goto("https://nvidia.example.com/apply/autofillWithResume");
+  const result = await read(page);
+  expect(result.controls.map((control) => control.label)).toEqual(["Email Address"]);
+  expect(JSON.stringify(result)).not.toContain("hunter2");
+});

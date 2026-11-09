@@ -273,6 +273,11 @@ function isEmpty(value: FormControl["value"]): boolean {
  * all at once (owner, 2026-10-29). Assisted apply guesses, since the person
  * looks the form over before they submit it.
  */
+/** What Pinkslip never fills in or remembers, whatever the form calls it. An
+ * older app can still send a password box as an ordinary question. */
+const SECRET_QUESTION = /\bpass\s?(word|code|phrase)\b|\bssn\b|social security|\b(routing|bank account|credit card|card) number\b|\bcvv\b|passport number/i;
+export const isSecretQuestion = (label: string) => SECRET_QUESTION.test(label);
+
 export async function planApplication(
   env: Env,
   userId: string,
@@ -280,6 +285,7 @@ export async function planApplication(
   ai: JevRunner | undefined = env.AI as unknown as JevRunner | undefined,
   now = new Date(),
 ): Promise<ApplyPlan & { cost_usd: number }> {
+  input = { ...input, controls: input.controls.filter((control) => !isSecretQuestion(control.label)) };
   const [profile, saved, workAuthorization, user, job, answered] = await Promise.all([
     getUserProfile(env.DB, userId),
     savedAnswers(env.DB, userId),
@@ -470,7 +476,7 @@ export async function learnAnswers(
 ): Promise<number> {
   const statements: D1PreparedStatement[] = [];
   for (const control of controls) {
-    if (isEmpty(control.value) || control.kind === "file" || (control.kind === "checkbox" && !all)) continue;
+    if (isSecretQuestion(control.label) || isEmpty(control.value) || control.kind === "file" || (control.kind === "checkbox" && !all)) continue;
     const field = fieldForControl(control);
     if (field.section === "about" && !all) continue;
     const value = control.kind === "checkbox" ? (/^(checked|yes|true)$/i.test(String(control.value)) ? "yes" : "no") : control.value!;
