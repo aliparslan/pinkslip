@@ -39,8 +39,17 @@ const isKitPage = (path: string) => /apps\/native\/src\/features\/kit\/|apps\/na
 const SF_SYMBOL = /\bsystemName\s*[=:]|\bsystemImage\b|systemImageName|SymbolView|from ["']expo-symbols["']/;
 const intentional = (lines: string[], index: number) => /intentional:/.test(lines[index] ?? "") || /intentional:/.test(lines[index - 1] ?? "");
 
+/** A PNG in the app bundle rather than the catalog: on disk at both scales and in the Resources phase. */
+function looseImageShips(name: string): boolean {
+  const project = readFileSync(join(nativeRoot, "ios/Pinkslip.xcodeproj/project.pbxproj"), "utf8");
+  return ["2x", "3x"].every((scale) => {
+    const file = `${name}@${scale}.png`;
+    return existsSync(join(nativeRoot, "ios/Pinkslip", file)) && project.includes(`/* ${file} in Resources */,`);
+  });
+}
+
 const failures: string[] = [];
-const fail = (rule: string, where: string, detail: string) => failures.push(`  ${rule}  ${where}  ${detail}`);
+const fail =(rule: string, where: string, detail: string) => failures.push(`  ${rule}  ${where}  ${detail}`);
 
 const sources = [...files(join(nativeRoot, "src")), ...files(join(nativeRoot, "modules")), ...files(join(webRoot, "src"))];
 for (const path of sources) {
@@ -63,7 +72,8 @@ for (const path of sources) {
     if (/^\s*(\/\/|\*|\/\*)/.test(text) || intentional(lines, index)) return;
     if (rel.startsWith("apps/native/") && SF_SYMBOL.test(text)) fail("sf-symbol", `${rel}:${index + 1}`, text.trim().slice(0, 90));
     for (const named of text.matchAll(/templateImageName:\s*"([^"]+)"/g)) {
-      if (!existsSync(join(catalog, `${named[1]}.imageset`))) fail("missing", `${rel}:${index + 1}`, named[1]!);
+      const shipped = existsSync(join(catalog, `${named[1]}.imageset`)) || looseImageShips(named[1]!);
+      if (!shipped) fail("missing", `${rel}:${index + 1}`, named[1]!);
     }
   });
 }

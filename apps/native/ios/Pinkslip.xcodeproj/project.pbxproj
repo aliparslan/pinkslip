@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AB1E0B0700000000000A0001 /* alert-bot@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = AB1E0B0700000000000A0003 /* alert-bot@2x.png */; };
+		AB1E0B0700000000000A0002 /* alert-bot@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = AB1E0B0700000000000A0004 /* alert-bot@3x.png */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
@@ -17,6 +19,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		AB1E0B0700000000000A0003 /* alert-bot@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "alert-bot@2x.png"; path = "Pinkslip/alert-bot@2x.png"; sourceTree = "<group>"; };
+		AB1E0B0700000000000A0004 /* alert-bot@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "alert-bot@3x.png"; path = "Pinkslip/alert-bot@3x.png"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* Pinkslip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pinkslip.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Pinkslip/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Pinkslip/Info.plist; sourceTree = "<group>"; };
@@ -51,6 +55,8 @@
 				F11748442D0722820044C1D9 /* Pinkslip-Bridging-Header.h */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
+				AB1E0B0700000000000A0003 /* alert-bot@2x.png */,
+				AB1E0B0700000000000A0004 /* alert-bot@3x.png */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				ECF12BFDDEDFF70A275A0EA3 /* PrivacyInfo.xcprivacy */,
@@ -196,6 +202,8 @@
 			files = (
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
+				AB1E0B0700000000000A0001 /* alert-bot@2x.png in Resources */,
+				AB1E0B0700000000000A0002 /* alert-bot@3x.png in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
 				F67C6D726BBA52FB9AF76E7D /* PrivacyInfo.xcprivacy in Resources */,
 			);

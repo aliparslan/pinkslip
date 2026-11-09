@@ -39,20 +39,16 @@ final class AlertActions: NotificationDelegate {
   /// registered already, so the "Apply for you?" buttons stay. `authenticationRequired`
   /// has iOS unlock the phone first, which also frees the session token.
   func registerButtons() {
-    // Apple's symbols, which iOS draws itself: the app's own images showed in
-    // the simulator but came up blank on a real phone (owner, 2026-11-08).
-    func button(_ action: Action, _ title: String, _ symbol: String) -> UNNotificationAction {
-      UNNotificationAction(
-        identifier: action.rawValue,
-        title: title,
-        options: [.authenticationRequired],
-        // intentional: the app's own images came up blank on a real phone (c88ceed).
-        icon: UNNotificationActionIcon(systemImageName: symbol)
-      )
+    func button(_ action: Action, _ title: String, _ icon: UNNotificationActionIcon) -> UNNotificationAction {
+      UNNotificationAction(identifier: action.rawValue, title: title, options: [.authenticationRequired], icon: icon)
     }
-    let save = button(.save, "Save", "bookmark")
-    let queue = button(.queue, "Queue", "paperplane")
-    let hide = button(.hide, "Hide", "eye.slash")
+    // intentional: the app's catalog images showed in the simulator but came up blank on a real phone (c88ceed).
+    func symbol(_ name: String) -> UNNotificationActionIcon { UNNotificationActionIcon(systemImageName: name) }
+    let save = button(.save, "Save", symbol("bookmark"))
+    // The robot as a loose image in the app (ios/Pinkslip/alert-bot@*.png), a
+    // try at what the catalog's menu-bot couldn't do on a real phone.
+    let queue = button(.queue, "Queue", UNNotificationActionIcon(templateImageName: "alert-bot"))
+    let hide = button(.hide, "Hide", symbol("eye.slash"))
     let sets = [
       UNNotificationCategory(identifier: "job_alert", actions: [save, hide], intentIdentifiers: []),
       UNNotificationCategory(identifier: "job_alert_queue", actions: [save, queue, hide], intentIdentifiers: [])
