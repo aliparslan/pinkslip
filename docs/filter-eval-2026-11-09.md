@@ -51,8 +51,37 @@ asked for 6 to 8+ years, so those rejections were right. Four state no years at 
 title. Whether that's right is a policy question: unknown years are currently treated
 as too senior.
 
+## What gets through
+
+The other half: 300 open jobs drawn at random from the catalog. 216 pass the feed's
+career-stage rules, so a user could see them, and 117 of those are matched to at least
+one person today. Each of the 216 was judged by its title, location and stated
+requirements.
+
+| Problem | In the 216 | Matched to someone |
+|---|---|---|
+| Other engineering (hardware, facilities, power, propulsion) | 28 | 1 |
+| Not technical (a trader, trading operations, a sector analyst) | 3 | 0 |
+| Requires a clearance the applicant must already hold | 2 | 0 |
+| **Total** | **33 (15%)** | **1 of 117 (under 1%)** |
+| Pre-sales solutions roles (a policy call, not counted) | 7 | 0 |
+| Couldn't tell | 4 | 0 |
+
+No job in the 216 was outside the US, and none was above the five-year limit once
+preferred-only experience is set aside. Staff and principal roles sit in the table but
+never reach a feed: none of the 300 was matched to anyone at those levels.
+
+People's preferences catch nearly all of the leak today. The match count reflects
+current users' settings, so someone with broader preferences would see more of it.
+
+The leak is mostly titles that sound general: SpaceX's Fire Protection, HVAC Design and
+Operations Engineers, xAI's power plant roles, Rocket Lab's vehicle and fluids roles,
+and chip roles like Micron's DFT and NVIDIA's verification engineers.
+
 ## Where to look next
 
+- Widen the other-engineering filter for the titles above, then re-score both samples,
+  since a wider filter can also start rejecting good jobs.
 - "(Manager, IC)" shouldn't count as management.
 - A rule for security analysts would need care: SpaceX's Insider Threat Analyst and
   similar roles aren't technical.
