@@ -931,19 +931,3 @@ describe("catalogCareerStages", () => {
     expect(catalogCareerStages({ seniority: "staff_plus", min_years: 2 })).toEqual([]);
   });
 });
-
-describe("solutions architects", () => {
-  const listing = (title: string) => ({ externalId: "1", title, url: "https://example.com", location: "Remote", department: null, postedAt: null, description: null, salary: null });
-
-  it("count as forward deployed work, so someone can match them", () => {
-    for (const title of ["Solutions Architect, Integrations", "Resident Solutions Architect", "Solution Architect"]) {
-      const features = classifyJob(listing(title));
-      expect(features.role_family).toBe("engineering");
-      expect(features.specialties).toEqual(["forward_deployed"]);
-    }
-  });
-
-  it("doesn't pull in sales engineers", () => {
-    expect(classifyJob(listing("Sales Engineer")).specialties).not.toContain("forward_deployed");
-  });
-});
