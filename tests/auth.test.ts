@@ -109,20 +109,20 @@ describe("consumeEmailLoginToken", () => {
   it("allows exactly one winner when the same magic link is consumed concurrently", async () => {
     const { db, getConsumeCount } = fakeMagicLinkDb();
     const results = await Promise.all([
-      consumeEmailLoginToken(db, "same-magic-link"),
-      consumeEmailLoginToken(db, "same-magic-link"),
+      consumeEmailLoginToken(db, "same-magic-link", "session-1"),
+      consumeEmailLoginToken(db, "same-magic-link", "session-1"),
     ]);
 
     expect(results.filter(Boolean)).toEqual([
       { id: "email-token-1", email: "person@example.com" },
     ]);
     expect(getConsumeCount()).toBe(1);
-    expect(await consumeEmailLoginToken(db, "same-magic-link")).toBeNull();
+    expect(await consumeEmailLoginToken(db, "same-magic-link", "session-1")).toBeNull();
   });
 
   it("does not consume an expired magic link", async () => {
     const { db, getConsumeCount } = fakeMagicLinkDb("2020-01-01T00:00:00.000Z");
-    expect(await consumeEmailLoginToken(db, "expired-magic-link")).toBeNull();
+    expect(await consumeEmailLoginToken(db, "expired-magic-link", "session-1")).toBeNull();
     expect(getConsumeCount()).toBe(0);
   });
 });

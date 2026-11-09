@@ -46,6 +46,20 @@ import type { AuthIdentityRow, Env, UserRow, Variables } from "../types";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+/** Signing in as a different account from a session that's already signed in. */
+class SignedInElsewhere extends Error {}
+
+auth.onError((error, c) => {
+  if (error instanceof SignedInElsewhere) {
+    return c.json({ error: "You're signed in to a different account. Sign out first.", code: "signed_in_elsewhere" }, 409);
+  }
+  throw error;
+});
+
+/** Turned on once every app in use sends the handoff; older ones can't. See
+ * docs/APP_STORE_READINESS.md. */
+const GOOGLE_HANDOFF_REQUIRED = false;
+
 auth.post("/apple/web/start", async (c) => {
   c.header("Cache-Control", "no-store");
   const origin = new URL(c.req.url).origin;
@@ -235,6 +249,9 @@ async function signInWithIdentity(
   const createdAccount = !directIdentity && !linkedIdentity;
 
   if ((directIdentity || linkedIdentity) && currentUserId !== targetUserId) {
+    // Only a guest's data moves into an account. A signed-in account is never
+    // merged into another one, which would delete it.
+    if (c.get("sessionState") === "authenticated") throw new SignedInElsewhere();
     await mergeGuestDataIntoAccount(db, {
       sourceUserId: currentUserId,
       targetUserId,
@@ -298,8 +315,12 @@ async function signInWithIdentity(
   return nextSession;
 }
 
-export async function consumeEmailLoginToken(db: D1Database, rawToken: string) {
-  const tokenHash = await sha256Hex(rawToken);
+/** A sign-in link's stored hash covers the session that asked for it, so the
+ * link only works there. Sent to someone else, it's just an expired link. */
+const emailLinkHash = (rawToken: string, sessionId: string | null) => sha256Hex(`${sessionId ?? ""}:${rawToken}`);
+
+export async function consumeEmailLoginToken(db: D1Database, rawToken: string, sessionId: string | null) {
+  const tokenHash = await emailLinkHash(rawToken, sessionId);
   const now = new Date().toISOString();
   type EmailLoginTokenRow = { id: string; email: string };
 
@@ -471,7 +492,7 @@ auth.post("/email/start", async (c) => {
   }
 
   const rawToken = randomOpaqueToken(32);
-  const tokenHash = await sha256Hex(rawToken);
+  const tokenHash = await emailLinkHash(rawToken, c.get("sessionId"));
 
   const tokenId = crypto.randomUUID();
   await c.env.DB.prepare(
@@ -513,7 +534,7 @@ auth.post("/email/verify", async (c) => {
     return c.json({ error: "Missing token" }, 400);
   }
 
-  const consumed = await consumeEmailLoginToken(c.env.DB, token);
+  const consumed = await consumeEmailLoginToken(c.env.DB, token, c.get("sessionId"));
   if (!consumed) {
     return c.json({ error: "That sign-in link is invalid or expired", code: "invalid_email_token" }, 401);
   }
@@ -609,15 +630,19 @@ auth.post("/email/code/verify", async (c) => {
   const passwordHash = typeof body?.password === "string" ? await hashPassword(body.password) : null;
   const now = new Date().toISOString();
   const row = await c.env.DB.prepare(
-    `SELECT id, token_hash, attempts FROM email_login_tokens
+    `SELECT id, token_hash FROM email_login_tokens
      WHERE email = ? AND kind = 'code' AND consumed_at IS NULL AND datetime(expires_at) > datetime(?)
      ORDER BY datetime(created_at) DESC LIMIT 1`
-  ).bind(email, now).first<{ id: string; token_hash: string; attempts: number }>();
-  if (!row || row.attempts >= CODE_ATTEMPTS) {
+  ).bind(email, now).first<{ id: string; token_hash: string }>();
+  // The try is counted before the code is compared, in one step, so requests
+  // arriving together can't all get in under the limit.
+  const counted = row ? await c.env.DB.prepare(
+    "UPDATE email_login_tokens SET attempts = attempts + 1 WHERE id = ? AND attempts < ? AND consumed_at IS NULL"
+  ).bind(row.id, CODE_ATTEMPTS).run() : null;
+  if (!row || !counted?.meta.changes) {
     return c.json({ error: "That code expired. Ask for a new one.", code: "expired_code" }, 401);
   }
   if ((await sha256Hex(`code:${row.id}:${code}`)) !== row.token_hash) {
-    await c.env.DB.prepare("UPDATE email_login_tokens SET attempts = attempts + 1 WHERE id = ?").bind(row.id).run();
     return c.json({ error: "That code isn't right", code: "wrong_code" }, 401);
   }
   const consumed = await c.env.DB.prepare(
@@ -649,22 +674,28 @@ auth.post("/password/login", async (c) => {
   }
   const requestIp = c.req.header("cf-connecting-ip")?.trim() || null;
   const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  // This try is written down before anything is checked, so tries arriving
+  // together see each other. A right password or a refused try takes it back.
+  const attemptId = crypto.randomUUID();
+  const forgetAttempt = () => c.env.DB.prepare("DELETE FROM password_attempts WHERE id = ?").bind(attemptId).run();
+  await c.env.DB.prepare("INSERT INTO password_attempts (id, email, request_ip, attempted_at) VALUES (?, ?, ?, ?)")
+    .bind(attemptId, email, requestIp, new Date().toISOString()).run();
   const misses = await c.env.DB.prepare(
     `SELECT
        (SELECT COUNT(*) FROM password_attempts WHERE email = ? AND attempted_at > ?) AS by_email,
        (SELECT COUNT(*) FROM password_attempts WHERE request_ip = ? AND attempted_at > ?) AS by_ip`
   ).bind(email, since, requestIp, since).first<{ by_email: number; by_ip: number }>();
-  if ((misses?.by_email ?? 0) >= 10 || (requestIp && (misses?.by_ip ?? 0) >= 30)) {
+  if ((misses?.by_email ?? 0) > 10 || (requestIp && (misses?.by_ip ?? 0) > 30)) {
+    await forgetAttempt();
     return c.json({ error: "Too many tries. Wait a few minutes, or sign in with a code.", code: "password_rate_limited" }, 429);
   }
   const identity = await c.env.DB.prepare(
     "SELECT password_hash FROM auth_identities WHERE provider = 'email' AND provider_subject = ? AND password_hash IS NOT NULL"
   ).bind(email).first<{ password_hash: string }>();
   if (!identity || !(await verifyPassword(password, identity.password_hash))) {
-    await c.env.DB.prepare("INSERT INTO password_attempts (id, email, request_ip, attempted_at) VALUES (?, ?, ?, ?)")
-      .bind(crypto.randomUUID(), email, requestIp, new Date().toISOString()).run();
     return c.json({ error: "That email and password don't match", code: "wrong_password" }, 401);
   }
+  await forgetAttempt();
   const nextSession = await signInWithIdentity(c, { provider: "email", providerSubject: email, email, emailVerified: true });
   return c.json({
     ...await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState")),
@@ -747,8 +778,8 @@ auth.get("/google/callback", async (c) => {
   const state = url.searchParams.get("state") ?? "";
   const flow = await loadGoogleFlow(c.env.DB, state);
   const native = flow?.client === "native";
-  const done = (result: string) => native
-    ? c.redirect(`pinkslip://auth/google?result=${result}${result === "success" ? `&state=${encodeURIComponent(state)}` : ""}`, 302)
+  const done = (result: string, handoff?: string) => native
+    ? c.redirect(`pinkslip://auth/google?result=${result}${result === "success" ? `&state=${encodeURIComponent(state)}` : ""}${handoff ? `&handoff=${encodeURIComponent(handoff)}` : ""}`, 302)
     : c.redirect(`/you/account?google=${result}`, 303);
   const config = googleConfig(c.env);
   if (!flow || !config) return done("error");
@@ -761,9 +792,12 @@ auth.get("/google/callback", async (c) => {
   try {
     const identity = await exchangeGoogleCode(config, flow, code);
     if (native) {
+      // Goes only to the device that finished Google's page, and the app
+      // hands it back: knowing the flow's state isn't enough to collect it.
+      const handoff = randomOpaqueToken(32);
       await c.env.DB.prepare("UPDATE oauth_flows SET result_json = ? WHERE id = ? AND consumed_at IS NULL")
-        .bind(JSON.stringify(identity), state).run();
-      return done("success");
+        .bind(JSON.stringify({ ...identity, handoff_hash: await sha256Hex(handoff) }), state).run();
+      return done("success", handoff);
     }
     const session = await loadActiveSession(c.env.DB, parseCookie(c.req.header("cookie"), COOKIE_NAMES.session) ?? "");
     if (!session || session.id !== flow.session_id || session.state !== "guest") throw new Error("Session changed during sign-in");
@@ -785,14 +819,18 @@ auth.get("/google/callback", async (c) => {
 
 /** The app collects the identity Google confirmed, on the session that started it. */
 auth.post("/google/native/finish", async (c) => {
-  const body = await c.req.json<{ state?: string }>().catch(() => null);
+  const body = await c.req.json<{ state?: string; handoff?: string }>().catch(() => null);
   const state = body?.state?.trim() ?? "";
   const flow = await loadGoogleFlow(c.env.DB, state);
   if (!flow || flow.client !== "native" || flow.session_id !== c.get("sessionId") || !flow.result_json) {
     return c.json({ error: "Google sign-in didn't finish. Try again.", code: "google_incomplete" }, 400);
   }
+  const { handoff_hash: handoffHash, ...identity } = JSON.parse(flow.result_json) as GoogleIdentity & { handoff_hash?: string };
+  const handoff = body?.handoff?.trim();
+  if (handoff ? (await sha256Hex(handoff)) !== handoffHash : GOOGLE_HANDOFF_REQUIRED) {
+    return c.json({ error: "Google sign-in didn't finish. Try again.", code: "google_incomplete" }, 400);
+  }
   if (!(await consumeGoogleFlow(c.env.DB, state))) return c.json({ error: "Google sign-in didn't finish. Try again.", code: "google_incomplete" }, 400);
-  const identity = JSON.parse(flow.result_json) as GoogleIdentity;
   // Signed in already (Account's Connect Google): Google joins this account
   // and the session stays. Never another account's Google, which signing in
   // would answer by moving this account's data into that one.
@@ -889,7 +927,8 @@ export async function completeEmailMagicLink(
   request: Request,
   env: Env,
   currentUserId: string,
-  currentSessionId: string | null
+  currentSessionId: string | null,
+  currentSessionState: string | null
 ) {
   const url = new URL(request.url);
   const token = url.searchParams.get("token")?.trim();
@@ -897,7 +936,7 @@ export async function completeEmailMagicLink(
     return new Response("Missing email login token", { status: 400 });
   }
 
-  const consumed = await consumeEmailLoginToken(env.DB, token);
+  const consumed = await consumeEmailLoginToken(env.DB, token, currentSessionId);
   if (!consumed) {
     return Response.redirect(new URL("/you/account?auth=email-expired", request.url).toString(), 302);
   }
@@ -907,6 +946,10 @@ export async function completeEmailMagicLink(
   const targetUserId = identity?.user_id ?? currentUserId;
 
   if (identity && currentUserId !== targetUserId) {
+    // As in signInWithIdentity: a signed-in account is never merged away.
+    if (currentSessionState === "authenticated") {
+      return Response.redirect(new URL("/you/account?auth=email-expired", request.url).toString(), 302);
+    }
     await mergeGuestDataIntoAccount(env.DB, {
       sourceUserId: currentUserId,
       targetUserId,

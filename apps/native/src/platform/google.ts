@@ -21,5 +21,7 @@ export async function signInWithGoogle(api: ApiClient): Promise<MeResponse> {
   const state = typeof queryParams?.state === "string" ? queryParams.state : null;
   if (outcome === "cancelled") throw new GoogleSignInCanceled();
   if (outcome !== "success" || !state) throw new Error("Google sign-in didn't finish.");
-  return api.auth.finishGoogleNative(state);
+  // Only this device was sent it, so only this device can collect the sign-in.
+  const handoff = typeof queryParams?.handoff === "string" ? queryParams.handoff : undefined;
+  return api.auth.finishGoogleNative(state, handoff);
 }

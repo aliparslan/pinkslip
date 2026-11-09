@@ -259,11 +259,16 @@ describe("Google sign-in", () => {
     // The sheet carries no cookies and no bearer; the flow keeps what Google confirmed.
     const callback = await worker.fetch(new Request(`${ORIGIN}/api/v2/auth/google/callback?state=${started.state}&code=good-code`), env, ctx);
     expect(callback.status).toBe(302);
-    expect(callback.headers.get("location")).toBe(`pinkslip://auth/google?result=success&state=${started.state}`);
+    const location = new URL(callback.headers.get("location")!);
+    expect(`${location.protocol}//${location.host}${location.pathname}`).toBe("pinkslip://auth/google");
+    expect(location.searchParams.get("state")).toBe(started.state);
+    const handoff = location.searchParams.get("handoff")!;
+    expect(handoff.length).toBeGreaterThan(20);
 
-    // Another session can't collect it.
-    expect((await app(await guest(db))("/api/v2/auth/google/native/finish", { state: started.state })).status).toBe(400);
-    const finished = await call("/api/v2/auth/google/native/finish", { state: started.state });
+    // Another session can't collect it, and neither can a wrong handoff.
+    expect((await app(await guest(db))("/api/v2/auth/google/native/finish", { state: started.state, handoff })).status).toBe(400);
+    expect((await call("/api/v2/auth/google/native/finish", { state: started.state, handoff: "not-the-handoff" })).status).toBe(400);
+    const finished = await call("/api/v2/auth/google/native/finish", { state: started.state, handoff });
     expect(finished.status).toBe(200);
     expect(await finished.json()).toMatchObject({ session: { state: "authenticated" }, account: { providers: ["google"] }, native_token: expect.any(String) });
     expect(sqlite.query("SELECT COUNT(*) AS count FROM auth_identities WHERE provider = 'google'").get()).toEqual({ count: 1 });

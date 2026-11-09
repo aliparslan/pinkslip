@@ -11,6 +11,7 @@ export function sqliteD1() {
 
   function prepared(sql: string, bindings: unknown[] = []): D1PreparedStatement {
     const statement = {
+      __sql: sql,
       bind(...values: unknown[]) {
         return prepared(sql, values);
       },
@@ -39,7 +40,11 @@ export function sqliteD1() {
     },
     async batch(statements: D1PreparedStatement[]) {
       const results = [];
-      for (const statement of statements) results.push(await statement.run());
+      for (const statement of statements) {
+        // As real D1 does, a SELECT in a batch answers with its rows.
+        if (/^\s*SELECT/i.test((statement as unknown as { __sql: string }).__sql)) results.push({ ...(await statement.all()), meta: { changes: 0 } });
+        else results.push(await statement.run());
+      }
       return results;
     },
   } as unknown as D1Database;

@@ -413,7 +413,7 @@ app.route("/api/v2/applications", applicationRoutes);
 app.route("/api/v2/inbox", inboxRoutes);
 app.route("/api/v2/auth", authRoutes);
 app.get("/auth/email/verify", async (c) =>
-  completeEmailMagicLink(c.req.raw, c.env, c.get("userId"), c.get("sessionId"))
+  completeEmailMagicLink(c.req.raw, c.env, c.get("userId"), c.get("sessionId"), c.get("sessionState"))
 );
 app.get("/api/v2/health", (c) =>
   c.json({

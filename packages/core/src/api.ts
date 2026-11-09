@@ -931,10 +931,10 @@ function createEndpoints(context: ClientContext) {
      * then finish with the `state` it returns to `return_url` with. */
     startGoogleNative: () =>
       request<{ url: string; state: string; return_url: string }>("/auth/google/native/start", { method: "POST" }),
-    finishGoogleNative: (state: string) =>
+    finishGoogleNative: (state: string, handoff?: string) =>
       request<MeResponse & { native_token: string }>("/auth/google/native/finish", {
         method: "POST",
-        body: JSON.stringify({ state }),
+        body: JSON.stringify({ state, handoff }),
       }),
     logout: () =>
       request<MeResponse>("/auth/logout", { method: "POST" }),
