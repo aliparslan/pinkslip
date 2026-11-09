@@ -1,5 +1,5 @@
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
-import { Children, Fragment, useMemo, useState } from "react";
+import { Children, Fragment, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
@@ -45,11 +45,11 @@ export interface LiveQueue {
 }
 
 /**
- * 4.1, the live bar: a slim pill above the tab bar on every tab, what it's
- * doing and how far, and, once sends can pause, a round pause. The run fills
- * it in Queue's solid purple, from a circle around Queue's white bot; the
- * words turn white where the purple has reached them (owner, 2026-11-08: a
- * see-through purple over glass looked muddy). Tapping it opens the queue.
+ * 4.1, the live bar: a slim pill above the tab bar on every tab, Queue's solid
+ * bot, what it's doing and how far, and, once sends can pause, a round pause.
+ * The run fills it from behind the bot in a soft lilac, opaque so the glass
+ * can't muddy it and lighter so the bot stays its own thing (owner,
+ * 2026-11-08). Tapping it opens the queue.
  * Its place is the tab bar's `above` slot.
  */
 export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, onOpenJob }: {
@@ -64,9 +64,6 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, on
   onStop?: () => void;
   onOpenJob?: (job: LiveJob) => void;
 }) {
-  const { theme } = useUnistyles();
-  // Read on every render, so a run that starts later has the current theme.
-  const queuePurple = theme.ui.color["swipe-queue"];
   const [open, setOpen] = useState(false);
   // SENT comes down onto what the bar said while sending, and the bar turns
   // to the job under it as it lands (Paper "Signature moments · Nov 8", 2).
@@ -78,8 +75,17 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, on
   const share = shown.kind === "sending" || shown.kind === "paused" ? (before ? 1 : shown.share) : 0;
   const running = shown.kind === "sending" || shown.kind === "paused";
   const [barWidth, setBarWidth] = useState(0);
-  // Never less than the circle around the bot, however early in the run.
-  const fillWidth = barWidth === 0 ? 0 : LIVE_BAR_HEIGHT + share * (barWidth - LIVE_BAR_HEIGHT);
+  // A pill as long as the bar, slid in from the left so its round end shows.
+  // Never short of the circle around the bot, however early in the run.
+  const fillBehind = LIVE_BAR_HEIGHT + share * (barWidth - LIVE_BAR_HEIGHT) - barWidth;
+  const fillShift = useSharedValue(-OFF_BAR);
+  const fillPlaced = useRef(false);
+  useLayoutEffect(() => {
+    if (barWidth === 0) return;
+    fillShift.value = fillPlaced.current ? withTiming(fillBehind, timing(SETTLE_FILL)) : fillBehind;
+    fillPlaced.current = true;
+  }, [fillBehind, barWidth, fillShift]);
+  const fillMoving = useAnimatedStyle(() => ({ transform: [{ translateX: fillShift.value }] }));
   const dip = useSharedValue(0);
   const drag = useSharedValue(0);
   const meet = () => {
@@ -110,6 +116,7 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, on
       accessibilityActions={stamped && onDismiss ? [{ name: "dismiss", label: "Dismiss" }] : undefined}
       onAccessibilityAction={(event) => { if (event.nativeEvent.actionName === "dismiss") onDismiss?.(); }}>
       <GlassView glassEffectStyle="regular" style={[styles.bar, !GLASS && styles.paper]} onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}>
+        {running && barWidth > 0 ? <Animated.View key="fill" pointerEvents="none" exiting={FILL_OUT} style={[styles.fill, { width: barWidth }, fillMoving]} /> : null}
         {stamped && !before && state.kind === "done"
           ? <Animated.View key="after" entering={SWAP_IN} style={styles.done}>
             {state.job
@@ -137,32 +144,14 @@ export function LiveBar({ state, queue, onAction, onDismiss, onPause, onStop, on
             </View>
           </Animated.View>}
         {/* In its own box: a hugging button aligns to the top of a row. */}
-        {stamped ? <View style={styles.stampSlot} />
+        {stamped ? <View style={styles.stampSlot}><StampMark label="SENT" landing onLanded={meet} /></View>
           : state.kind === "needs" ? <View><Button variant="primary" size="small" onPress={onAction}>{state.action}</Button></View>
           : state.kind === "done" ? <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Dismiss" hitSlop={6} style={styles.round}>
             <Icon name="close" size={14} tone="ink-2" />
           </Pressable>
-          : onPause ? <View style={styles.fillRoom} /> : null}
-        {/* Over it all, the purple and the same line in white, cut off where the purple ends. */}
-        {running && fillWidth > 0 ? <Animated.View key="fill" pointerEvents="none" exiting={FILL_OUT} style={[styles.fill, { width: fillWidth, backgroundColor: queuePurple }]}>
-          <View style={[styles.fillRow, { width: barWidth }]}>
-            <View style={styles.markSlot}><Icon name="autoApply" weight="fill" size={QUEUE_MARK_ICON} tone="accent-ink" /></View>
-            <View style={styles.flex}>
-              <Text role="subhead" tone="accent-ink" lines={1}>
-                <Text role="subhead" weight="medium" tone="accent-ink">{shown.kind === "sending" ? `Applying to ${shown.company}` : "Paused"}</Text>
-                <Text role="subhead" tone="accent-ink">{`  ${shown.count}`}</Text>
-              </Text>
-            </View>
-            {onPause && !stamped ? <View style={styles.fillRoom} /> : null}
-          </View>
-        </Animated.View> : null}
-        {/* The purple covers the row, so what's tapped or stamped comes back above it. */}
-        {running && !stamped && onPause ? <View style={styles.pauseOver}>
-          <Pressable onPress={onPause} accessibilityRole="button" accessibilityLabel={state.kind === "paused" ? "Resume" : "Pause"} hitSlop={6} style={styles.round}>
+          : onPause ? <Pressable onPress={onPause} accessibilityRole="button" accessibilityLabel={state.kind === "paused" ? "Resume" : "Pause"} hitSlop={6} style={styles.round}>
             <PauseMark paused={state.kind === "paused"} />
-          </Pressable>
-        </View> : null}
-        {stamped ? <View style={styles.stampOver} pointerEvents="none"><View style={styles.stampSlot}><StampMark label="SENT" landing onLanded={meet} /></View></View> : null}
+          </Pressable> : null}
       </GlassView>
     </Pressable>
     </Animated.View></GestureDetector>
@@ -259,8 +248,10 @@ const STAMP_DIP = 2;
 const SWAP_OUT = FadeOut.duration(80);
 /** The purple clears as the bar turns to the job that went. */
 const FILL_OUT = FadeOut.duration(160);
-/** Round the bar's 36 controls, so they sit concentric with its ends. */
-const BAR_INSET = 9;
+/** The fill eases forward as the run does. */
+const SETTLE_FILL = { duration: 420, curve: [0.23, 1, 0.32, 1] as const };
+/** Further left than any bar is wide: where the fill waits until the bar is measured. */
+const OFF_BAR = 2000;
 /** The bot's size in its 36 circle: as big against it as on a Queue swipe. */
 const QUEUE_MARK_ICON = 23;
 const SWAP_IN = FadeIn.delay(60).duration(140);
@@ -268,13 +259,9 @@ const SETTLE = { duration: 200, curve: [0.23, 1, 0.32, 1] as const };
 
 const styles = StyleSheet.create((theme) => ({
   flex: { flex: 1, minWidth: 0 },
-  bar: { height: LIVE_BAR_HEIGHT, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: BAR_INSET, borderRadius: 27, overflow: "hidden" },
+  bar: { height: LIVE_BAR_HEIGHT, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: 9, borderRadius: 27, overflow: "hidden" },
   paper: { backgroundColor: theme.ui.color["bg-elev"], boxShadow: theme.ui.shadow.pill },
-  fill: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: LIVE_BAR_HEIGHT / 2, borderCurve: "continuous", overflow: "hidden" },
-  fillRow: { position: "absolute", left: 0, top: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"], paddingHorizontal: BAR_INSET },
-  fillRoom: { width: 36 },
-  pauseOver: { position: "absolute", right: BAR_INSET, top: BAR_INSET },
-  stampOver: { position: "absolute", right: BAR_INSET, top: 0, bottom: 0, justifyContent: "center" },
+  fill: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: LIVE_BAR_HEIGHT / 2, borderCurve: "continuous", backgroundColor: theme.ui.color["queue-fill"] },
   mark: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: theme.ui.color["bg-grouped"] },
   markSlot: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
   done: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: theme.ui.space["3"] },
