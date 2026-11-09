@@ -459,3 +459,29 @@ worth building yet: SmartRecruiters has 46 open jobs, Lever's submit is behind a
 captcha, and Workday, Oracle and the big companies' own sites need an account per
 employer. Of 65 real sends, 17 went through and 40 stopped to ask a question, so
 the gain is in answering more of those.
+
+## 11. a16z-only companies (2026-11-09)
+
+The review page gained "backed only by" and "10+ people" filters. Of 140 a16z-only
+companies with 10+ people, the owner approved 20 more. 17 went live through 0124 and
+0125. Their backfill stored 18 jobs and sent no alerts.
+
+**Corrected.** Lumos's scan had matched a fiber internet provider's Greenhouse board,
+so it now uses the identity company's Ashby board. Pryzm renamed itself Belisar and
+is listed under the new name.
+
+**Logos replaced.** Belisar's Google favicon was its host's default, and Town's App
+Store search matched a farming game. Backflip and Standard Nuclear only had low
+resolution versions.
+
+**Held out.**
+
+- ZeroMark: approved, but it's a defense company (AI targeting). Waits on the owner.
+- Legend Labs: its Ashby board no longer exists.
+- Revolut: approved, but it runs its own careers site. Needs a custom reader. Come
+  back to it.
+
+**Why so few jobs.** Town's 10 engineering roles were posted 55 to 200 days ago and
+Braintrust has 8 that are 32 to 955 days old. Both fail the freshness rule. Startups
+leave roles open for months, so that rule costs more on these boards than on big
+employers'. Nothing was changed.
