@@ -251,15 +251,6 @@ on one line share a size.
   Offer; endings are gray.
 - **Applied:** the torn stub (a paper object), not a checkmark.
 
-## Faces
-
-A person's picture is a face they build (owner, 2026-11-08; Paper "Build your
-face"): ink features on a soft circle, drawn by `Face` from the options in
-`ui/face-parts.ts`. It starts as a plain face seeded from the account, a tap
-on You's card opens the picker, and it's kept on this phone for now. Every
-part stays inside the circle. Hair, hats and beards wait until their drawing
-is settled. A company's or a recruiter's picture is still a logo or initials.
-
 ## Icons
 
 - **One set everywhere:** Phosphor, on iOS and the web
@@ -302,12 +293,13 @@ is settled. A company's or a recruiter's picture is still a logo or initials.
 - **Staying with Phosphor** (owner, 2026-10-14): Lucide was ruled out as
   overused. When Phosphor's glyph doesn't hold up at our sizes, we draw our
   own on its grid rather than switch packs.
-- **The selected tab** is a solid icon in `ink`, on the gray oval (owner,
-  2026-11-08: no more pink here). Phosphor's fills read oddly at 24 (the
-  bookmarks' back stroke, the ring round the profile), so these five are
-  drawn for Pinkslip on its 256 grid: `LitTabIcon` in `ui/Icon.tsx`, Paper
-  "Icon sets, resting and selected". At rest a tab is still Phosphor. Only
-  the count is pink.
+- **A selected tab is its resting icon, filled in** (owner, 2026-11-08), in
+  `ink` on the gray oval, with no pink. One drawing, two states: the outer
+  edge never changes, and what was a line inside becomes a gap
+  (`ui/tab-icons.ts`; a test holds each to Phosphor's edge). Search has no
+  inside to fill, so it stays the same line in ink. The Tracker's back
+  bookmark is the one soft part, `ink-4`, since a line beside a solid front
+  read as a leftover stroke. Only the count is pink.
   The tabs are Today (the plain calendar), Jobs, Tracker (the stacked
   bookmarks, as the website's Library), Search and You (the user circle), 56
   apart; the 64 × 46 oval is wider than that (owner, 2026-10-15).
@@ -859,8 +851,10 @@ part isn't there yet, draw it from the kit's values and add it to that page.
     in the tab bar's `above` slot, so it comes and goes with the bar and
     lists and toasts make room. One application counts its fields
     ("Applying to Toast 11 of 17"), several count applications ("3 of
-    9"); the fill and the bot are Queue's purple (owner, 2026-11-08;
-    `queue-fill`, soft enough to read the words over). A job that needs you takes it over with its
+    9"). The run fills it in Queue's solid `swipe-queue`, from a circle
+    around Queue's white bot, and the words turn white where the purple has
+    reached them (owner, 2026-11-08: a see-through purple on glass looked
+    muddy). A job that needs you takes it over with its
     logo, a pink dot and its action (Answer, Enter, Finish), which opens
     the job's sheet. Done ("3 sent · 2 confirmed so far", or "Sent to
     Toast · Confirmed") stays 4 seconds. Tap for the queue: Now, Up next,

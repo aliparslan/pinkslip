@@ -12,7 +12,7 @@ import { useTransitionProgress } from "react-native-screens";
 import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { Badge } from "./Badge";
-import { Icon, LitTabIcon, type TabIconName } from "./Icon";
+import { TabIcon, type TabIconName } from "./Icon";
 import { motion, project, rubberBand, spring } from "./motion";
 import { useToastLift } from "./Toast";
 
@@ -548,11 +548,8 @@ export function TabBar({ state, navigation, badges, above, aboveHeight = 0 }: Bo
                 accessibilityLabel={badge ? `${tab.label}, ${badge} need you` : tab.label}
                 accessibilityState={{ selected: index === selected }} style={styles.slot}>
                 <View>
-                  {/* The outline icon; selected, Pinkslip's own solid drawing in ink
-                      (owner, 2026-11-08), which swaps in as the oval passes. */}
-                  {index === lit
-                    ? <LitTabIcon name={tab.icon} size={ICON} />
-                    : <Icon name={tab.icon} size={ICON} tone="ink-2" />}
+                  {/* One drawing, filled in as the oval passes (owner, 2026-11-08). */}
+                  <TabIcon name={tab.icon} size={ICON} selected={index === lit} />
                   {/* The count rides on the icon's top right (System, the tab bar part). */}
                   {badge ? <View style={styles.badge} pointerEvents="none"><Badge count={badge} /></View> : null}
                 </View>
