@@ -1,11 +1,12 @@
 import { Host, Mask, Rectangle, ZStack } from "@expo/ui/swift-ui";
 import { animation, Animation, foregroundStyle, opacity } from "@expo/ui/swift-ui/modifiers";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { View, type StyleProp, type ViewStyle } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { motion } from "./motion";
+import { StyleSheet } from "react-native-unistyles";
+import { motion, timing } from "./motion";
 
 const GLASS = isLiquidGlassAvailable();
 
@@ -47,6 +48,7 @@ const TINT = 0.7;
 /** Stops down the mask, evenly spaced as SwiftUI's gradient takes them. */
 const MASK_STOPS = 12;
 const FADE = Animation.easeOut({ duration: motion.topEdge.duration / 1000 });
+const TINT_FADE = timing({ duration: motion.topEdge.duration, curve: [0, 0, 0.58, 1] });
 
 /** The mask: solid through the bleed and the status bar, then easing out
  * over the tail, so there's no line where the blur stops. */
@@ -87,21 +89,34 @@ export function useTopEdge() {
  * page's bar keeps TopEdgeFade. The bottom has none: rows show through the
  * tab bar's glass (owner, 2026-11-08: keep the translucency, for now). */
 export function TopEdgeBlur({ under }: { under: boolean }) {
-  const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
   const height = BLUR_BLEED + insets.top + BLUR_TAIL;
   const colors = maskColors((BLUR_BLEED + insets.top) / height);
-  return <Host pointerEvents="none" ignoreSafeArea="all" style={[styles.blur, { height }]}>
-    <Mask>
-      <ZStack modifiers={[opacity(under ? 1 : 0), animation(FADE, under)]}>
-        <Rectangle modifiers={[foregroundStyle({ type: "material", material: "ultraThin" })]} />
-        <Rectangle modifiers={[foregroundStyle(theme.ui.color.bg), opacity(TINT)]} />
-      </ZStack>
-      <Mask.Content>
-        <Rectangle modifiers={[foregroundStyle({ type: "linearGradient", colors, startPoint: { x: 0.5, y: 0 }, endPoint: { x: 0.5, y: 1 } })]} />
-      </Mask.Content>
-    </Mask>
-  </Host>;
+  const shown = useSharedValue(under ? 1 : 0);
+  useEffect(() => { shown.value = withTiming(under ? 1 : 0, TINT_FADE); }, [shown, under]);
+  const tint = useAnimatedStyle(() => ({ opacity: shown.value }));
+  return <>
+    <Host pointerEvents="none" ignoreSafeArea="all" style={[styles.blur, { height }]}>
+      <Mask>
+        <ZStack modifiers={[opacity(under ? 1 : 0), animation(FADE, under)]}>
+          <Rectangle modifiers={[foregroundStyle({ type: "material", material: "ultraThin" })]} />
+        </ZStack>
+        <Mask.Content>
+          <Rectangle modifiers={[foregroundStyle({ type: "linearGradient", colors, startPoint: { x: 0.5, y: 0 }, endPoint: { x: 0.5, y: 1 } })]} />
+        </Mask.Content>
+      </Mask>
+    </Host>
+    {/* The tint, in layers of the sheet's color shaped like the mask. The
+        material changes with the page by itself; a color handed to SwiftUI
+        waits for a redraw, and popped 0.3s after a theme change (owner, Nov 9). */}
+    <Animated.View pointerEvents="none" style={[styles.fade, { height: insets.top + BLUR_TAIL }, tint]}>
+      <View style={[styles.page, { height: insets.top, opacity: TINT }]} />
+      {FADE_STEPS.map((step) => {
+        const left = 1 - (step + 0.5) / FADE_STEPS.length;
+        return <View key={step} style={[styles.page, { height: BLUR_TAIL / FADE_STEPS.length, opacity: TINT * left * left * (3 - 2 * left) }]} />;
+      })}
+    </Animated.View>
+  </>;
 }
 
 const styles = StyleSheet.create((theme) => ({
