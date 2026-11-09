@@ -45,7 +45,10 @@ export const ListMotionCell = forwardRef<View, ViewProps & { index: number }>(fu
   const playing = under !== null;
   const key = keys[index];
   const comesOrGoes = playing && key !== undefined && under.has(key);
-  return <Animated.View ref={ref} {...rest} style={[style, playing && styles.playing, playing && (comesOrGoes ? styles.under : styles.over)]}
+  // Each row draws over the one above it. FlashList reuses cells in any order,
+  // so without this a swiped row's cover over the line above could end up
+  // beneath that line (owner, 2026-11-08: the hairline came back).
+  return <Animated.View ref={ref} {...rest} style={[style, { zIndex: index }, playing && styles.playing, playing && (comesOrGoes ? styles.under : styles.over)]}
     layout={playing ? ROW_MOVE : undefined}
     entering={playing ? ROW_ARRIVE : undefined}
     exiting={comesOrGoes ? ROW_LEAVE : undefined}>

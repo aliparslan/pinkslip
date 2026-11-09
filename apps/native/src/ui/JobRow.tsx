@@ -82,7 +82,7 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
     onAccessibilityAction={(event) => actions?.find((action) => action.id === event.nativeEvent.actionName)?.run()}
     style={({ pressed }) => [styles.row, titleFirst && styles.compact, inCard && styles.clear, pressed && !swiping && styles.pressed]}>
     <View style={[styles.logo, quiet && styles.faded]}>{leading ?? (logo ? <CompanyLogo {...logo} /> : null)}</View>
-    {titleFirst ? <View style={[styles.text, last && styles.textLast]}>
+    {titleFirst ? <View style={[styles.text, last && styles.textLast, swiping && styles.textSwiped]}>
       <View style={styles.line}>
         <Text role="subhead" weight={weight} tone={quiet ? "ink-3" : "ink"} lines={2} flex>{title}</Text>
         {age || dot ? <View style={styles.age}>
@@ -97,7 +97,7 @@ export function JobRow({ title, company, facts, age, stage, unread: newToYou, he
           <Text role="subhead" tone="ink-3">{stageLabels[stage]}</Text>
         </View> : null}
       </View>
-    </View> : <View style={[styles.text, last && styles.textLast]}>
+    </View> : <View style={[styles.text, last && styles.textLast, swiping && styles.textSwiped]}>
       <View style={styles.line}>
         <Text role={tracker ? "body" : "subhead"} weight={tracker ? "medium" : weight} tone={quiet ? "ink-3" : news ? "ink-2" : "ink"} lines={1} flex>{company}</Text>
         {age || dot ? <View style={styles.age}>
@@ -145,6 +145,8 @@ const styles = StyleSheet.create((theme) => {
       borderBottomColor: theme.ui.color.separator,
     },
     textLast: { borderBottomWidth: 0 },
+    // Clear rather than gone, so the row keeps its height as the card moves.
+    textSwiped: { borderBottomColor: "transparent" },
     line: { flexDirection: "row", alignItems: "baseline", gap: theme.ui.space["2"] },
     // Centred, not on the baseline: the stage's icon has none, so on the
     // baseline it hung below and a saved row grew a point (owner, 2026-11-07).

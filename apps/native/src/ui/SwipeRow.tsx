@@ -40,8 +40,9 @@ export interface SwipeRowProps {
 
 const FAST = { duration: 200, easing: Easing.bezier(0.23, 1, 0.32, 1) };
 
-/** True while a row is being swiped, so the row inside can skip its press
- * highlight and its tap (the swipe doesn't always cancel the touch). */
+/** True while a row is being swiped or sits open, so the row inside can skip
+ * its press highlight and its tap (the swipe doesn't always cancel the touch)
+ * and leave its separator off the moving card. */
 export const SwipingContext = createContext(false);
 
 /** True inside a swipe row, whose own card is the row's background, so the
@@ -352,7 +353,7 @@ export function SwipeRow({ id, leading: given = [], trailing: givenTrailing = []
       <Animated.View style={[styles.card, rowStyle]} onLayout={(event) => { height.value = event.nativeEvent.layout.height; }}>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.cardTint, cardStyle]} />
         <SwipeCardContext.Provider value>
-          <SwipingContext.Provider value={swiping}>{children}</SwipingContext.Provider>
+          <SwipingContext.Provider value={swiping || open !== null}>{children}</SwipingContext.Provider>
         </SwipeCardContext.Provider>
         {open ? <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Close actions" onPress={() => close.current()} /> : null}
       </Animated.View>
