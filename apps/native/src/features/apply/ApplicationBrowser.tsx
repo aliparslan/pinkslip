@@ -19,6 +19,8 @@ export interface ApplicationRequest {
   jobId: string;
   url: string;
   autoSubmit: boolean;
+  /** Fill Workday page by page (workday-pages.ts). */
+  workdayPages?: boolean;
   /** For the header: "Apply at Stripe". */
   company?: string;
   /** The kit: the real loop fills the form with a plan made on the phone

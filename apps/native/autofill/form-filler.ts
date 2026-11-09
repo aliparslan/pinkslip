@@ -155,9 +155,39 @@ export async function fillForm(request: FillRequest): Promise<FillReport> {
     await wait(180);
   };
 
+  /** Workday's dropdown: a button whose list exists only while it's open. */
+  const pickFromList = async (button: HTMLElement, wanted: string): Promise<FillOutcome> => {
+    if (norm(button.textContent) === norm(wanted)) return "filled";
+    button.click();
+    let list: HTMLElement | null = null;
+    for (let attempt = 0; attempt < 40 && !list; attempt += 1) {
+      await wait(50);
+      const opened = document.getElementById(button.getAttribute("aria-controls") ?? "");
+      if (opened?.querySelector("[role='option']")) list = opened;
+    }
+    if (!list) return "failed";
+    // "Select One" has no value of its own.
+    const options = [...list.querySelectorAll("[role='option']")].filter((option) => option.getAttribute("data-value") !== "");
+    const option = bestMatch(options, (candidate) => candidate.textContent ?? "", wanted);
+    if (option) {
+      (option as HTMLElement).click();
+      return "filled";
+    }
+    (document.activeElement ?? list).dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true }));
+    return "no_match";
+  };
+
+  /** On Workday, the Terms box is the person's to tick. Its menus take a real
+   * tap and draw only some of their rows, and its date boxes aren't plain text. */
+  const leftToThePerson = (element: Element) =>
+    /termsAndConditions/i.test(element.id)
+    || element.getAttribute("data-uxi-widget-type") === "selectinput"
+    || (element.getAttribute("data-automation-id") ?? "").startsWith("dateSection");
+
   const fillStep = async (step: FillStep): Promise<FillOutcome> => {
     const element = find(step.ref);
     if (!element) return "missing";
+    if (leftToThePerson(element)) return "no_match";
     await reveal(element);
     const wanted = values(step);
 
@@ -174,6 +204,7 @@ export async function fillForm(request: FillRequest): Promise<FillReport> {
         return "filled";
       }
       case "select": {
+        if (element.getAttribute("aria-haspopup") === "listbox") return pickFromList(element as HTMLElement, wanted[0]);
         if (!(element instanceof HTMLSelectElement)) return "failed";
         const option = bestMatch([...element.options].filter((candidate) => candidate.value !== ""), (candidate) => candidate.textContent ?? "", wanted[0]);
         if (!option) return "no_match";

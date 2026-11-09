@@ -2,11 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { createApiClient } from "../packages/core/src/api";
 import type { ApplyPlan, FormControl } from "../shared/application-form";
 import { runAutoApply, type ApplicationBrowserSession, type FillProgress } from "../apps/native/src/platform/autofill/auto-apply-loop";
-import { READ_FORM_BODY, SUBMIT_FORM_BODY } from "../apps/native/src/platform/autofill/scripts.generated";
+import { READ_DROPDOWNS_BODY, READ_FORM_BODY, READ_WORKDAY_FORM_BODY, SUBMIT_FORM_BODY } from "../apps/native/src/platform/autofill/scripts.generated";
+import { assistedStartUrl } from "../apps/native/src/platform/autofill/workday";
 
 const email = (): FormControl => ({ ref: "email", kind: "email", label: "Email", required: true, options: [], searchable: false, value: null });
 const plan: ApplyPlan = { steps: [{ ref: "email", kind: "email", value: "avery@example.com" }], needs: [], inferred: [] };
 const deferred = <T>() => Promise.withResolvers<T>();
+const WORKDAY = "https://nvidia.wd5.myworkdayjobs.com/site/job/place/title/apply/applyManually";
 async function until(condition: () => boolean) {
   const deadline = Date.now() + 6_000;
   while (!condition()) {
@@ -15,9 +17,11 @@ async function until(condition: () => boolean) {
   }
 }
 
-function harness(options: { autoSubmit?: boolean; delayed?: boolean; planning?: () => Promise<ApplyPlan> } = {}) {
+function harness(options: { autoSubmit?: boolean; delayed?: boolean; planning?: () => Promise<ApplyPlan>; url?: string; step?: string; controls?: FormControl[]; workdayPages?: boolean } = {}) {
   let events: Parameters<ApplicationBrowserSession["open"]>[1];
-  let controls = options.delayed ? [] : [email()];
+  let controls = options.controls ?? (options.delayed ? [] : [email()]);
+  let step = options.step ?? null;
+  let peeks = 0;
   let submitted = false;
   let submittedCalls = 0;
   let fills = 0;
@@ -40,7 +44,9 @@ function harness(options: { autoSubmit?: boolean; delayed?: boolean; planning?: 
     setStatus: async (status) => { statuses.push(status); },
     setProgress: async (update) => { progress.push(update); },
     run: async (body) => {
-      if (body === READ_FORM_BODY) { reads += 1; return JSON.stringify({ submitted, controls }); }
+      if (body === READ_FORM_BODY) { reads += 1; return JSON.stringify({ submitted, controls, step: null }); }
+      if (body === READ_WORKDAY_FORM_BODY) { reads += 1; return JSON.stringify({ submitted, controls, step }); }
+      if (body === READ_DROPDOWNS_BODY) { peeks += 1; return ""; }
       if (body === SUBMIT_FORM_BODY) {
         submits += 1;
         submitted = submitStatus === "submitted";
@@ -51,7 +57,7 @@ function harness(options: { autoSubmit?: boolean; delayed?: boolean; planning?: 
       return JSON.stringify({ outcomes: { email: "filled" } });
     },
   };
-  const result = runAutoApply(api, browser, { jobId: "job-1", url: "https://jobs.test/1", autoSubmit: options.autoSubmit ?? false,
+  const result = runAutoApply(api, browser, { jobId: "job-1", url: options.url ?? "https://jobs.test/1", autoSubmit: options.autoSubmit ?? false, workdayPages: options.workdayPages,
     onSubmitted: () => { submittedCalls += 1; } }, async () => null);
   return {
     result, statuses, learned, progress,
@@ -63,6 +69,9 @@ function harness(options: { autoSubmit?: boolean; delayed?: boolean; planning?: 
     manualSubmit: () => { submitted = true; controls = []; },
     correctEmail: () => { controls = [{ ...email(), value: "corrected@example.com" }]; },
     setSubmitStatus: (status: string) => { submitStatus = status; },
+    showStep: (next: string) => { step = next; controls = [email()]; },
+    setControls: (next: FormControl[]) => { controls = next; },
+    get peeks() { return peeks; },
     get fills() { return fills; }, get plans() { return plans; }, get reads() { return reads; },
     get submits() { return submits; }, get submittedCalls() { return submittedCalls; }, get cleaned() { return cleaned; },
   };
@@ -76,6 +85,70 @@ describe("native application session", () => {
       await until(() => flow.statuses.includes("Ready to submit"));
       expect(flow.progress[0]).toEqual({ phase: "filling", done: 0, of: 1 });
       expect(flow.progress.find((update) => update.phase === "form")).toEqual({ phase: "form", filled: 1, total: 1, open: [], byPinkslip: ["email"], blanks: [] });
+    } finally { flow.close(); }
+    await flow.result;
+  });
+
+  test("fills each page of a multi-page form as it appears, with no navigation", async () => {
+    const flow = harness({ url: WORKDAY, workdayPages: true, step: "current step 1 of 2" });
+    try {
+      flow.load();
+      await until(() => flow.statuses.includes("Ready for the next page"));
+      expect(flow.plans).toBe(1);
+      flow.showStep("current step 2 of 2");
+      await until(() => flow.fills === 2);
+      expect(flow.plans).toBe(2);
+      await until(() => flow.statuses.includes("Ready to submit"));
+    } finally { flow.close(); }
+    await flow.result;
+  });
+
+  test("stays on the first page until Workday's pages are switched on", async () => {
+    const flow = harness({ url: WORKDAY, step: "current step 1 of 2" });
+    try {
+      flow.load();
+      await until(() => flow.statuses.includes("Ready to submit"));
+      flow.showStep("current step 2 of 2");
+      const reads = flow.reads;
+      await until(() => flow.reads > reads + 1);
+      expect(flow.plans).toBe(1);
+    } finally { flow.close(); }
+    await flow.result;
+  });
+
+  test("never submits on Workday, even with submitting on", async () => {
+    const flow = harness({ autoSubmit: true, url: WORKDAY });
+    try {
+      flow.load();
+      await until(() => flow.statuses.includes("Ready to submit"));
+      expect(flow.fills).toBe(1);
+      expect(flow.submits).toBe(0);
+    } finally { flow.close(); }
+    await flow.result;
+  });
+
+  test("opens dropdowns for their options before asking for a plan", async () => {
+    const dropdown: FormControl = { ref: "state", kind: "select", label: "State", required: false, options: [], searchable: false, value: null };
+    let peeksAtPlan = -1;
+    const flow: ReturnType<typeof harness> = harness({ url: WORKDAY, workdayPages: true, controls: [dropdown], planning: async () => { peeksAtPlan = flow.peeks; return { steps: [], needs: [], inferred: [] }; } });
+    try {
+      flow.load();
+      await until(() => flow.plans === 1);
+      expect(peeksAtPlan).toBe(1);
+    } finally { flow.close(); }
+    await flow.result;
+  });
+
+  test("doesn't keep a date someone typed as an answer", async () => {
+    const date: FormControl = { ref: "from", kind: "date", label: "Work experience: start date month", required: true, options: [], searchable: false, value: null };
+    const flow = harness({ controls: [date], planning: async () => ({ steps: [], needs: [{ ref: "from", label: date.label, kind: "date", options: [], required: true }], inferred: [] }) });
+    try {
+      flow.load();
+      await until(() => flow.plans === 1);
+      flow.setControls([{ ...date, value: "06" }]);
+      const reads = flow.reads;
+      await until(() => flow.reads > reads + 1);
+      expect(flow.learned).toEqual([]);
     } finally { flow.close(); }
     await flow.result;
   });
@@ -187,5 +260,22 @@ describe("native application session", () => {
       expect(flow.submits).toBe(0);
     } finally { flow.close(); }
     expect(await flow.result).toBe("submitted");
+  });
+});
+
+describe("where assisted apply starts", () => {
+  const posting = "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/job/US-CA-Santa-Clara/Engineer_JR1";
+  test("goes straight to Workday's sign-in", () => {
+    expect(assistedStartUrl(posting)).toBe(`${posting}/apply/applyManually`);
+    expect(assistedStartUrl(`${posting}/?source=x`)).toBe(`${posting}/apply/applyManually?source=x`);
+  });
+  test("leaves anything else alone", () => {
+    expect(assistedStartUrl(`${posting}/apply`)).toBe(`${posting}/apply`);
+    expect(assistedStartUrl(`${posting}/apply/autofillWithResume`)).toBe(`${posting}/apply/autofillWithResume`);
+    expect(assistedStartUrl("https://boards.greenhouse.io/acme/jobs/1")).toBe("https://boards.greenhouse.io/acme/jobs/1");
+  });
+  test("isn't fooled by a title that starts with Apply", () => {
+    const title = "https://kla.wd1.myworkdayjobs.com/Search/job/Milpitas-CA/Applications-Engineer_1";
+    expect(assistedStartUrl(title)).toBe(`${title}/apply/applyManually`);
   });
 });

@@ -11,7 +11,7 @@ import type { FormControl, FormControlKind } from "@pinkslip/domain/application-
 
 export type { FormControl, FormControlKind };
 
-export function readForm(): FormControl[] {
+export function readForm(workdayPage = false): FormControl[] {
   const clean = (text: string | null | undefined) =>
     (text ?? "").replace(/\s+/g, " ").replace(/\s*[*✱]\s*$/, "").trim();
   const starred = (text: string | null | undefined) => /[*✱]\s*$/.test((text ?? "").trim());
@@ -170,6 +170,21 @@ export function readForm(): FormControl[] {
   const controls: FormControl[] = [];
   const handled = new Set<Element>();
   const scope = document.querySelector("form") ?? document.body;
+  // Workday's own controls. Elsewhere a listbox button is often a phone's
+  // country picker, so these are read only here.
+  const workday = workdayPage && /\.myworkdayjobs\.com$/.test(location.hostname);
+
+  /** Workday speaks a dropdown's question, its answer and "Required" as one
+   * aria-label, and only some have a label of their own. */
+  const dropdownLabel = (button: HTMLElement, shown: string) => {
+    const found = labelFor(button);
+    const spoken = found.text.replace(/\s*\bRequired$/, "");
+    const text = shown && spoken.endsWith(shown) ? spoken.slice(0, -shown.length).trim() : spoken;
+    return {
+      text: text || labelFor(button.parentElement ?? button).text,
+      starred: found.starred || /\bRequired\s*$/.test(button.getAttribute("aria-label") ?? ""),
+    };
+  };
 
   // Yes/No style button groups (Ashby): two or more toggle buttons under one question.
   for (const group of scope.querySelectorAll("[data-field-path], fieldset, [role='group'], [role='radiogroup']")) {
@@ -196,8 +211,25 @@ export function readForm(): FormControl[] {
   const radiosByName = new Map<string, HTMLInputElement[]>();
   const checkboxes: HTMLInputElement[] = [];
 
-  for (const element of scope.querySelectorAll("input, select, textarea")) {
+  for (const element of scope.querySelectorAll("input, select, textarea, button[aria-haspopup='listbox']")) {
     if (handled.has(element)) continue;
+    if (element instanceof HTMLButtonElement) {
+      if (!workday || !visible(element)) continue;
+      const shown = clean(element.textContent);
+      const label = dropdownLabel(element, shown);
+      if (!label.text) continue;
+      controls.push({
+        ref: stamp(element),
+        kind: "select",
+        label: label.text,
+        required: isRequired(element, label),
+        // Known once the dropdown has been opened (readDropdowns).
+        options: JSON.parse(element.getAttribute("data-pinkslip-options") ?? "[]") as string[],
+        searchable: false,
+        value: /^(select one)?$/i.test(shown) ? null : shown,
+      });
+      continue;
+    }
     const input = element as HTMLInputElement;
     const type = (input.type || "text").toLowerCase();
     if (type === "hidden" || type === "submit" || type === "button" || type === "image" || type === "reset") continue;
@@ -252,6 +284,46 @@ export function readForm(): FormControl[] {
     if (!label.text) continue;
     // Workday's trap, "This input is for robots only": a person leaves it.
     if (/for robots only/i.test(label.text)) continue;
+
+    // Every date box says Month or Year; its id says whose.
+    const dateBox = workday ? input.id.match(/^([a-zA-Z]+)-\d+--([a-zA-Z]+)-dateSection(Month|Year|Day)/) : null;
+    if (dateBox) {
+      const words = (name: string) => name.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`);
+      const section = words(dateBox[1]);
+      const date = words(dateBox[2]);
+      const part = dateBox[3].toLowerCase();
+      controls.push({
+        ref: stamp(input),
+        kind: "date",
+        label: `${section[0].toUpperCase()}${section.slice(1)}: ${date}${date.includes(part) ? "" : ` ${part}`}`,
+        required: isRequired(input, label),
+        options: [],
+        searchable: false,
+        value: input.value ? input.value : null,
+      });
+      continue;
+    }
+
+    // A menu with levels. Its answer sits in a list beside the search box,
+    // which stays empty.
+    if (workday && input.getAttribute("data-uxi-widget-type") === "selectinput") {
+      let chosen: string[] = [];
+      let around: Element | null = input.parentElement;
+      for (let depth = 0; around && depth < 8 && chosen.length === 0; depth += 1, around = around.parentElement) {
+        if (around.querySelectorAll("[data-uxi-widget-type='selectinput']").length > 1) break;
+        chosen = [...around.querySelectorAll("[data-automation-id='selectedItemList'] [role='option']")].map((item) => clean(item.textContent));
+      }
+      controls.push({
+        ref: stamp(input),
+        kind: "combobox",
+        label: label.text,
+        required: isRequired(input, label),
+        options: [],
+        searchable: true,
+        value: chosen.length > 1 ? chosen : chosen[0] ?? null,
+      });
+      continue;
+    }
 
     if (element instanceof HTMLSelectElement) {
       const options = [...element.options].filter((option) => option.value !== "").map((option) => clean(option.textContent));
@@ -360,6 +432,38 @@ export function readForm(): FormControl[] {
   return controls;
 }
 
+/** Opens each of Workday's unanswered dropdowns once, since a list exists
+ * only while it's open, and leaves its options on the button for readForm.
+ * For the start of a fill only: it moves focus and shows each list briefly. */
+export async function readDropdowns(): Promise<void> {
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  for (const element of document.querySelectorAll("button[aria-haspopup='listbox'][data-pinkslip-ref]:not([data-pinkslip-options])")) {
+    const button = element as HTMLElement;
+    if (!/^(select one)?$/i.test((button.textContent ?? "").trim())) continue;
+    button.click();
+    let list: HTMLElement | null = null;
+    for (let attempt = 0; attempt < 40 && !list; attempt += 1) {
+      await wait(50);
+      const opened = document.getElementById(button.getAttribute("aria-controls") ?? "");
+      if (opened?.querySelector("[role='option']")) list = opened;
+    }
+    if (!list) continue;
+    // "Select One" has no value of its own.
+    const options = [...list.querySelectorAll("[role='option']")]
+      .filter((option) => option.getAttribute("data-value") !== "")
+      .map((option) => (option.textContent ?? "").replace(/\s+/g, " ").trim());
+    button.setAttribute("data-pinkslip-options", JSON.stringify(options));
+    (document.activeElement ?? list).dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true }));
+    for (let attempt = 0; attempt < 10 && list.isConnected; attempt += 1) await wait(50);
+  }
+}
+
+/** Which page of a multi-page application is showing. Workday changes page
+ * without navigating, so this is the only sign. */
+export function formStep(): string | null {
+  return document.querySelector("[data-automation-id='progressBarActiveStep']")?.textContent?.trim() || null;
+}
+
 /** Whether the page says an application just went through. Only a page with
  * nothing left to fill counts, since forms often open with a thank-you. */
 export function submittedPage(): boolean {
@@ -394,11 +498,12 @@ export interface PageRead {
   /** The page confirms an application went through. */
   submitted: boolean;
   controls: FormControl[];
+  step: string | null;
 }
 
 /** A body for the native browser's run(), which returns a PageRead as JSON. */
 export function formReaderScript(): string {
   return `const submitted = ${submittedPage.toString()};
 await (${waitForForm.toString()})(submitted);
-return JSON.stringify({ submitted: submitted(), controls: (${readForm.toString()})() });`;
+return JSON.stringify({ submitted: submitted(), controls: (${readForm.toString()})(), step: null });`;
 }

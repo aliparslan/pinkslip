@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { FILL_FORM_FUNCTION, READ_FORM_BODY, SUBMIT_FORM_BODY } from "../src/platform/autofill/scripts.generated";
+import { FILL_FORM_FUNCTION, READ_DROPDOWNS_BODY, READ_FORM_BODY, READ_WORKDAY_FORM_BODY, SUBMIT_FORM_BODY } from "../src/platform/autofill/scripts.generated";
 import { SUBMIT_BUTTON } from "../src/platform/autofill/submit-button";
 
 /** A Greenhouse-style form: labelled inputs, a required marker, a select,
@@ -63,7 +63,8 @@ const LEVER = `<!doctype html><html><head><meta charset="utf-8"></head><body><fo
 
 interface Control { ref: string; kind: string; label: string; required: boolean; options: string[]; value: string | string[] | null }
 
-const read = async (page: Page) => JSON.parse(await page.evaluate(`(async () => { ${READ_FORM_BODY} })()`)) as { submitted: boolean; controls: Control[] };
+const read = async (page: Page) => JSON.parse(await page.evaluate(`(async () => { ${READ_FORM_BODY} })()`)) as { submitted: boolean; controls: Control[]; step: string | null };
+const readWorkday = async (page: Page) => JSON.parse(await page.evaluate(`(async () => { ${READ_WORKDAY_FORM_BODY} })()`)) as { submitted: boolean; controls: Control[]; step: string | null };
 const fill = (page: Page, request: unknown) => page.evaluate(`(async () => JSON.stringify(await (${FILL_FORM_FUNCTION})(${JSON.stringify(request)})))()`)
   .then((value) => JSON.parse(value as string) as { outcomes: Record<string, string> });
 
@@ -198,6 +199,108 @@ const WORKDAY_SIGN_IN = `<!doctype html><html><body><form>
   <label for="trap">Enter website. This input is for robots only, do not enter if you're human.</label><input id="trap" data-automation-id="beecatcher" type="text">
   <button type="submit">Sign In</button>
 </form></body></html>`;
+
+/** Workday's signed-in application, from NVIDIA's: dropdowns whose lists exist
+ * only while open and close on Escape to the list that has focus, a question
+ * with no label of its own, a menu with its picks beside it, date boxes, and
+ * the Terms box. */
+const WORKDAY_PAGE = `<!doctype html><html><body>
+<div data-automation-id="progressBarActiveStep">current step 3 of 5Application Questions</div>
+<div><label for="country--country">Country*</label><button id="country--country" aria-haspopup="listbox" aria-label="Country United States of America Required" data-options="United States of America|Canada">United States of America</button></div>
+<div><label for="address--countryRegion">State</label><button id="address--countryRegion" aria-haspopup="listbox" aria-label="State Select One" data-options="Alabama|Virginia">Select One</button></div>
+<div><div class="ask">Are you legally authorized to work here?*</div><button id="primaryQuestionnaire--a" aria-haspopup="listbox" aria-label="Are you legally authorized to work here? Select One Required" data-options="Yes|No">Select One</button></div>
+<div><label for="source--source">How Did You Hear About Us?*</label><div><ul data-automation-id="selectedItemList" role="listbox"><li role="option">NVIDIA.COM</li></ul><input id="source--source" data-automation-id="searchBox" data-uxi-widget-type="selectinput" aria-required="true"></div></div>
+<div><label for="skills--skills">Skills</label><div><input id="skills--skills" data-automation-id="searchBox" data-uxi-widget-type="selectinput"></div></div>
+<div><input id="workExperience-40--startDate-dateSectionMonth-input" role="spinbutton" data-automation-id="dateSectionMonth-input" aria-label="Month" aria-required="true"><input id="education-49--firstYearAttended-dateSectionYear-input" role="spinbutton" data-automation-id="dateSectionYear-input" aria-label="Year"></div>
+<div><label for="termsAndConditions--acceptTermsAndAgreements">Yes, I have read and consent to the terms and conditions*</label><input type="checkbox" id="termsAndConditions--acceptTermsAndAgreements" aria-required="true"></div>
+<script>
+let lists = 0;
+document.querySelectorAll("button[aria-haspopup=listbox]").forEach((button) => button.addEventListener("click", () => {
+  window.opened = (window.opened || 0) + 1;
+  const list = document.createElement("ul");
+  list.setAttribute("role", "listbox"); list.id = "list" + (lists += 1); list.tabIndex = -1;
+  const close = () => { list.remove(); button.removeAttribute("aria-controls"); };
+  ["Select One", ...button.dataset.options.split("|")].forEach((name, index) => {
+    const option = document.createElement("li");
+    option.setAttribute("role", "option"); option.setAttribute("data-value", index ? "v" + index : ""); option.textContent = name;
+    option.addEventListener("click", () => { button.textContent = name; close(); });
+    list.append(option);
+  });
+  list.addEventListener("keydown", (event) => { if (event.key === "Escape") close(); });
+  document.body.append(list); button.setAttribute("aria-controls", list.id); list.focus();
+}));
+</script></body></html>`;
+const openWorkday = async (page: Page, origin = "https://nvidia.wd5.myworkdayjobs.com") => {
+  await page.route(`${origin}/**`, (route) => route.fulfill({ contentType: "text/html", body: WORKDAY_PAGE }));
+  await page.goto(`${origin}/site/job/place/title/apply`);
+};
+const readDropdowns = (page: Page) => page.evaluate(`(async () => { ${READ_DROPDOWNS_BODY} })()`);
+
+test("reads Workday's page as questions, without opening anything", async ({ page }) => {
+  await openWorkday(page);
+  const { controls, step } = await readWorkday(page);
+  expect(step).toBe("current step 3 of 5Application Questions");
+  expect(await page.evaluate("window.opened ?? 0")).toBe(0);
+  expect(controls.map(({ label, kind, required, value }) => [label, kind, required, value])).toEqual([
+    ["Country", "select", true, "United States of America"],
+    ["State", "select", false, null],
+    ["Are you legally authorized to work here?", "select", true, null],
+    ["How Did You Hear About Us?", "combobox", true, "NVIDIA.COM"],
+    ["Skills", "combobox", false, null],
+    ["Work experience: start date month", "date", true, null],
+    ["Education: first year attended", "date", false, null],
+    ["Yes, I have read and consent to the terms and conditions", "checkbox", true, null],
+  ]);
+});
+
+test("opens each unanswered Workday dropdown once, and closes it", async ({ page }) => {
+  await openWorkday(page);
+  await readWorkday(page);
+  await readDropdowns(page);
+  expect(await page.evaluate("window.opened")).toBe(2);
+  expect(await page.locator("ul[id^=list]").count()).toBe(0);
+  await readDropdowns(page);
+  expect(await page.evaluate("window.opened")).toBe(2);
+  const { controls } = await readWorkday(page);
+  expect(controls.find((control) => control.label === "State")?.options).toEqual(["Alabama", "Virginia"]);
+  expect(controls.find((control) => control.label === "Are you legally authorized to work here?")?.value).toBeNull();
+});
+
+test("picks a Workday dropdown's option, and closes it when none fits", async ({ page }) => {
+  await openWorkday(page);
+  const { controls } = await readWorkday(page);
+  const ref = (label: string) => controls.find((control) => control.label === label)!.ref;
+  const state = ref("State");
+  expect((await fill(page, { steps: [{ ref: state, kind: "select", value: "Mars" }], resume: null })).outcomes[state]).toBe("no_match");
+  expect(await page.locator("ul[id^=list]").count()).toBe(0);
+  expect((await fill(page, { steps: [{ ref: state, kind: "select", value: "Virginia" }], resume: null })).outcomes[state]).toBe("filled");
+  expect(await page.locator("#address--countryRegion").textContent()).toBe("Virginia");
+  expect(await page.locator("ul[id^=list]").count()).toBe(0);
+});
+
+test("leaves Workday's Terms box, menus and date boxes to the person", async ({ page }) => {
+  await openWorkday(page);
+  const { controls } = await readWorkday(page);
+  const steps = controls.filter((control) => ["checkbox", "combobox", "date"].includes(control.kind))
+    .map((control) => ({ ref: control.ref, kind: control.kind, value: "checked", pick: control.kind === "combobox" }));
+  const { outcomes } = await fill(page, { steps, resume: null });
+  expect(new Set(Object.values(outcomes))).toEqual(new Set(["no_match"]));
+  expect(await page.locator("#termsAndConditions--acceptTermsAndAgreements").isChecked()).toBe(false);
+  expect(await page.locator("#skills--skills").inputValue()).toBe("");
+});
+
+test("doesn't read a listbox button as a question away from Workday", async ({ page }) => {
+  await openWorkday(page, "https://boards.example.com");
+  const { controls } = await readWorkday(page);
+  expect(controls.some((control) => control.kind === "select")).toBe(false);
+});
+
+test("the ordinary read doesn't touch Workday's own controls, so it's off until switched on", async ({ page }) => {
+  await openWorkday(page);
+  const { controls, step } = await read(page);
+  expect(step).toBeNull();
+  expect(controls.some((control) => control.kind === "select" || control.kind === "date")).toBe(false);
+});
 
 test("never reads a password, or Workday's field for robots", async ({ page }) => {
   await page.route("https://nvidia.example.com/**", (route) => route.fulfill({ contentType: "text/html", body: WORKDAY_SIGN_IN }));

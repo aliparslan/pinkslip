@@ -21,6 +21,7 @@ import { RELEASES, UpdateNotesSheet, WhatsNewSheet, type Release } from "../rede
 import { setPaperTexture, usePaperTexture, type PaperTexture } from "../../ui/Grain";
 import { setTabMotion, TAB_MOTIONS, useTabMotion } from "../../ui/tab-motion";
 import { MotionTrialList } from "./MotionTrials";
+import { setWorkdayPages, useWorkdayPages } from "../apply/workday-pages";
 
 const facts = [
   [{ label: "Level", value: "New grad" }, { label: "Pay", value: "$145K–$175K" }],
@@ -30,6 +31,7 @@ const facts = [
 
 /** Dev-only: the October 2026 redesign kit (src/ui) in its states. */
 export function RedesignGallery() {
+  const workdayPages = useWorkdayPages();
   const [chip, setChip] = useState("Remote");
   const [plan, setPlan] = useState("monthly");
   const [torn, setTorn] = useState(false);
@@ -57,6 +59,13 @@ export function RedesignGallery() {
 
     <Section title="Motion fixes" flush>
       <MotionTrialList />
+    </Section>
+
+    <Section title="Applying" flush>
+      <ListGroup footer="Off until it's been through a real application. Kept on this phone. Passwords, Terms and Submit stay yours.">
+        <ListItem title="Fill Workday page by page" detail={workdayPages ? "Starts at sign-in, fills each page" : "Starts at the posting, first form only"}
+          accessory="switch" selected={workdayPages} onToggle={setWorkdayPages} />
+      </ListGroup>
     </Section>
 
     <Section title="Screens" flush>

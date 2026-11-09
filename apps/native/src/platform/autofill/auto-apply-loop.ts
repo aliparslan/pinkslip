@@ -1,6 +1,7 @@
 import type { ApiClient } from "@pinkslip/core/api";
 import type { ApplyPlan, FillStep, FormControl } from "@pinkslip/domain/application-form";
-import { FILL_FORM_FUNCTION, READ_FORM_BODY, SUBMIT_FORM_BODY } from "./scripts.generated";
+import { FILL_FORM_FUNCTION, READ_DROPDOWNS_BODY, READ_FORM_BODY, READ_WORKDAY_FORM_BODY, SUBMIT_FORM_BODY } from "./scripts.generated";
+import { isWorkdayUrl } from "./workday";
 
 /** The in-app browser as the loop sees it (ApplicationBrowser.tsx). */
 export interface ApplicationBrowserSession {
@@ -22,13 +23,20 @@ export type FillProgress =
   | { phase: "form"; filled: number; total: number; open: string[]; byPinkslip: string[]; blanks: FormBlank[] }
   | { phase: "applied" };
 
-interface PageRead { submitted: boolean; controls: FormControl[] }
+interface PageRead { submitted: boolean; controls: FormControl[]; step?: string | null }
 type FillOutcome = "filled" | "missing" | "no_match" | "failed";
 interface FillReport { outcomes: Record<string, FillOutcome> }
 interface SubmitReport { status: "submitted" | "captcha" | "invalid" | "no_button" | "code" | "unknown"; errors: string[]; url: string }
 
 export type AutoApplyResult = "submitted" | "closed";
-export interface AutoApplyOptions { jobId: string; url: string; autoSubmit: boolean; onSubmitted?: () => void }
+export interface AutoApplyOptions {
+  jobId: string;
+  url: string;
+  autoSubmit: boolean;
+  /** Read Workday's dropdowns and fill each of its pages (Kit, off by default). */
+  workdayPages?: boolean;
+  onSubmitted?: () => void;
+}
 export interface ResumeUpload { name: string; base64: string }
 
 const isEmpty = (control: FormControl) =>
@@ -72,11 +80,17 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
     // Fill again only queues behind a running one.
     const resumeFile = within(resumeForUpload(), 15_000).catch(() => null);
     const isCurrent = (expected: number) => !closed && loaded && revision === expected;
-    const read = async () => JSON.parse(await within(browser.run(READ_FORM_BODY), 20_000)) as PageRead;
+    const readsWorkday = options.workdayPages === true && isWorkdayUrl(options.url);
+    const read = async () => JSON.parse(await within(browser.run(readsWorkday ? READ_WORKDAY_FORM_BODY : READ_FORM_BODY), 20_000)) as PageRead;
     const where = (url: string) => { try { const parsed = new URL(url); return `${parsed.host}${parsed.pathname}`; } catch { return ""; } };
     const host = where(options.url).split("/")[0];
     let page = "";
-    const tell = (fields: Record<string, unknown>) => void api.apply.report({ host, page, ...fields }).catch(() => undefined);
+    /** The page of a multi-page application that's showing (Workday's). */
+    let step: string | null = null;
+    // Save and Continue, the Terms box and Submit stay the person's on Workday.
+    const autoSubmit = options.autoSubmit && !isWorkdayUrl(options.url);
+    const moreToCome = () => { const at = step?.match(/(\d+) of (\d+)/); return at ? Number(at[1]) < Number(at[2]) : false; };
+    const tell = (fields: Record<string, unknown>) => void api.apply.report({ host, page: step ? `${step}: ${page}` : page, ...fields }).catch(() => undefined);
 
     const progress = (update: FillProgress) => browser.setProgress?.(update).catch(() => undefined);
     const tally = (controls: FormControl[]): FillProgress => ({
@@ -111,7 +125,8 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
       const fresh: FormControl[] = [];
       for (const control of controls) {
         const expected = watched.get(control.ref);
-        if (expected === undefined || isEmpty(control)) continue;
+        // A date belongs to its own row or application, so it isn't kept.
+        if (expected === undefined || isEmpty(control) || control.kind === "date") continue;
         const value = JSON.stringify(control.value);
         if (value === expected || value === learned.get(control.ref)) continue;
         learned.set(control.ref, value);
@@ -129,16 +144,20 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
     const showOpen = async (open: number) => {
       if (open === shownOpen) return;
       shownOpen = open;
-      await browser.setStatus(open === 0 ? "Ready to submit" : open === 1 ? "1 question needs you" : `${open} questions need you`);
+      await browser.setStatus(open === 0 ? (moreToCome() ? "Ready for the next page" : "Ready to submit") : open === 1 ? "1 question needs you" : `${open} questions need you`);
     };
     const watch = async () => {
       if (closed) return;
       if (!running && !submitted && loaded) {
         const expected = revision;
         try {
-          const { submitted: done, controls } = await read();
+          const { submitted: done, controls, step: showing } = await read();
           if (!running && isCurrent(expected)) {
             if (done) { tell({ stage: "submitted", by: "user" }); await applied(expected); }
+            else if (showing && showing !== step && controls.length > 0) {
+              watched = new Map(); learned.clear(); byPinkslip = new Set();
+              await pass();
+            }
             else if (!formShown && controls.length > 0) await pass();
             else if (formShown) {
               await learnFrom(controls);
@@ -167,11 +186,18 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
         const first = await read();
         if (!isCurrent(expected)) return;
         if (first.submitted) { tell({ stage: "submitted", by: "user" }); await applied(expected); return; }
+        step = first.step ?? step;
         let controls = first.controls;
         if (controls.length === 0) { tell({ stage: "empty" }); await browser.setStatus("Open the application form to fill it"); return; }
         formShown = true;
         await learnFrom(controls);
         if (!isCurrent(expected)) return;
+        if (readsWorkday && controls.some((control) => control.kind === "select" && control.options.length === 0 && isEmpty(control))) {
+          await within(browser.run(READ_DROPDOWNS_BODY), 25_000).catch(() => undefined);
+          if (!isCurrent(expected)) return;
+          controls = (await read()).controls;
+          if (!isCurrent(expected)) return;
+        }
         phase = "plan";
         shownOpen = -1;
         await browser.setStatus("Filling…");
@@ -203,7 +229,7 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
             .map(([ref, outcome]) => `${before.get(ref)?.kind}: ${before.get(ref)?.label}: ${outcome}${filled?.errors[ref] ? ` (${filled.errors[ref]})` : ""}`),
         });
         phase = "submit";
-        if (open.length > 0 || !options.autoSubmit) { await showOpen(open.length); return; }
+        if (open.length > 0 || !autoSubmit) { await showOpen(open.length); return; }
         await browser.setStatus("Submitting…");
         const report = JSON.parse(await within(browser.run(SUBMIT_FORM_BODY), 30_000)) as SubmitReport;
         if (!isCurrent(expected)) return;

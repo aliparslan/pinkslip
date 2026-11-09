@@ -10,9 +10,11 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Alert } from "react-native";
 import { toast, UNDO_TOAST_DURATION } from "../../ui";
 import type { GlyphMenuItem, GlyphMenuSpec } from "../../ui";
+import { assistedStartUrl } from "../../platform/autofill/workday";
 import { haptics } from "../../platform/haptics";
 import { shareJob } from "../../platform/share";
 import { ApplicationBrowser, type ApplicationRequest } from "../apply/ApplicationBrowser";
+import { useWorkdayPages } from "../apply/workday-pages";
 import { OutreachSheet } from "../apply/OutreachSheet";
 import { cachedJob, type AnyJob } from "../jobs/cached-job";
 import { useTrack } from "../jobs/track";
@@ -91,6 +93,7 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
   const features = session?.me?.features;
   const admin = Boolean(session?.me?.is_admin);
   const autoApply = Boolean(features?.auto_apply_enabled);
+  const workdayPages = useWorkdayPages();
   const autoSubmit = Boolean(features?.auto_submit_enabled);
   const outreach = Boolean(features?.outreach_enabled);
   const save = useSaveJob();
@@ -188,7 +191,7 @@ export function useJobPageActions(job: DetailJob, { outreachThread, controlsColo
     if (counted) track("apply_clicked", { type: "job", id: job.id, properties: { source: "auto_apply" } });
     const prepared = await api.apply.prepare(job.id).catch(() => null);
     const url = prepared?.apply_url ?? job.url;
-    return url ? { jobId: job.id, url, autoSubmit, company: job.company_name } : null;
+    return url ? { jobId: job.id, url: workdayPages ? assistedStartUrl(url) : url, autoSubmit, workdayPages, company: job.company_name } : null;
   };
   const startAutoApply = async () => {
     const request = await prepareRequest();
