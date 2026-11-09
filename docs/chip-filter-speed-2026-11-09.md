@@ -76,3 +76,25 @@ After launch, the real step: send the newest 1,000 rows with their location,
 level and numeric pay, and filter and sort them on the phone, with the server
 confirming behind it. The rows need those fields added, and the phone's
 matching has to agree with the server's.
+
+## After the server fixes (Worker 3a0c351a, Nov 9)
+
+The same test, medians in ms, with the Worker placed beside the database, pay
+in the query, a capped count and no housekeeping on later pages.
+
+| Request | First page, before | First page, after | Later page, before | Later page, after |
+| --- | --- | --- | --- | --- |
+| No filter | 767 | 268 | 360 | 110 |
+| Remote | 390 | 292 | 328 | 94 |
+| New grad | 487 | 277 | 384 | 80 |
+| Remote and New grad | 453 | 254 | 342 | 78 |
+| Pay $150K+ | 872 | 287 | 807 | 89 |
+
+The first-page numbers flatter the change. The same deploy carried a new
+matcher version, so the guest's list had been reset to 135 matches from 2,597
+and had less to count. Later pages are the fairer comparison. In isolation on
+the largest account, a capped count took 65ms against 464ms for an exact one.
+
+A dropdown can't load its options when it opens, because iOS menus don't tell
+the app. The likely ones are fetched in the background from the plain list.
+
