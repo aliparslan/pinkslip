@@ -122,13 +122,13 @@ AI_MONTHLY_BUDGET_USD = "10"
 # Production's values, set in the dashboard before they were kept here.
 JEV_DAILY_CALL_LIMIT = "100"
 JOB_CLASSIFICATION_AUDIT = "true"
-# Recruiter outreach for admins only. While OUTREACH_TEST_RECIPIENT is set,
-# it stands in for every recruiter's address: People lists the recruiters the
-# owner confirmed, but every email is addressed here, so testing never
-# reaches a real recruiter. Opening it to everyone (Decisions: Outreach #5)
-# removes the stand-in and sets "on".
+# Recruiter outreach for admins only, addressed to the recruiters on People.
+# A value in OUTREACH_TEST_RECIPIENT stands in for every recruiter's address,
+# for testing. It stays here empty because deploys use --keep-vars, which
+# would otherwise keep the last value. Opening it to everyone (Decisions:
+# Outreach #5) sets OUTREACH to "on".
 OUTREACH = "admin"
-OUTREACH_TEST_RECIPIENT = "aliparslan@outlook.com"
+OUTREACH_TEST_RECIPIENT = ""
 # Assisted apply (the in-app browser's fill, Apply's sheet, Answers) for
 # every signed-in user (owner, 2026-10-22). Submission stays manual unless
 # AUTO_APPLY_SUBMIT is explicitly enabled separately.
