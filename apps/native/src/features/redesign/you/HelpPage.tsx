@@ -1,8 +1,10 @@
 import { useRequestCompany, useSubmitFeedback } from "@pinkslip/data";
 import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { Alert, TextInput, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { WEB_URL } from "../../../platform/config";
 import { haptics } from "../../../platform/haptics";
 import { Button, face, ListGroup, ListItem, Segmented, toast } from "../../../ui";
 import { YouPage } from "./Page";
@@ -27,6 +29,9 @@ export function HelpView({ actions }: HelpViewProps) {
   const [details, setDetails] = useState("");
   const [sending, setSending] = useState(false);
   const font = face.text;
+  const openPage = (path: "/privacy" | "/terms") => void WebBrowser.openBrowserAsync(`${WEB_URL}${path}`, {
+    presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET, controlsColor: theme.ui.color.accent,
+  });
   const send = () => {
     setSending(true);
     actions.send(kind, subject.trim(), details.trim()).then(({ duplicate }) => {
@@ -68,6 +73,10 @@ export function HelpView({ actions }: HelpViewProps) {
     </View>
     <ListGroup surface="fill">
       <ListItem title="Request a company" accessory="chevron" onPress={request} />
+    </ListGroup>
+    <ListGroup surface="fill">
+      <ListItem title="Privacy" accessory="chevron" onPress={() => openPage("/privacy")} />
+      <ListItem title="Terms" accessory="chevron" onPress={() => openPage("/terms")} />
     </ListGroup>
   </YouPage>;
 }
