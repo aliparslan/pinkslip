@@ -119,6 +119,11 @@ describe("feed sections", () => {
     expect(sectionCount(sections, 0, true, 40)).toBe(1);
     // An older Worker sends no total: no count rather than a wrong one.
     expect(sectionCount(sections, 2, true, undefined)).toBeUndefined();
+    // Only New today loaded so far: how many so far, never the whole feed.
+    const today = [{ title: "New today", jobs: [job(), job()] }];
+    expect(sectionCount(today, 0, true, 2597)).toBe("2+");
+    expect(sectionCount(today, 0, false, 2597)).toBe(2);
+    expect(sectionCount([{ title: "Earlier this week", jobs: [job()] }], 0, true, 2597)).toBe("1+");
     // Never fewer than the rows already on screen.
     expect(sectionCount(sections, 2, true, 2)).toBe(1);
   });

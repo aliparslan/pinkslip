@@ -275,14 +275,17 @@ export function feedSections<T extends FactsJob>(jobs: T[], now = new Date()): F
 }
 
 /** A section's count for its header: every section gets one (owner,
- * 2026-10-13). The sections above the last are complete; the last is still
- * loading while more pages are left, so it's what the feed matched in all
- * (`matching`, from the API) less the sections above. Without that total
- * (an older Worker) it has none rather than a wrong one. */
-export function sectionCount(sections: FeedSection<unknown>[], index: number, more: boolean, matching: number | undefined): number | undefined {
+ * 2026-10-13). The sections above the last loaded one are complete. While
+ * more pages are left the last one is still filling: Older is what the feed
+ * matched in all (`matching`, from the API) less the sections above, since
+ * nothing comes after it. New today or Earlier this week could still hold
+ * more, so they say how many so far ("25+"), not the rest of the feed. Without
+ * the total (an older Worker) Older has none rather than a wrong one. */
+export function sectionCount(sections: FeedSection<unknown>[], index: number, more: boolean, matching: number | undefined): number | string | undefined {
   const section = sections[index];
   if (!section) return undefined;
   if (index < sections.length - 1 || !more) return section.jobs.length;
+  if (section.title !== "Older") return `${section.jobs.length}+`;
   if (matching === undefined) return undefined;
   const above = sections.slice(0, index).reduce((sum, earlier) => sum + earlier.jobs.length, 0);
   return Math.max(section.jobs.length, matching - above);

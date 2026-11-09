@@ -117,7 +117,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
       const count = sectionCount(sections, index, feed.hasNextPage, matching);
       const last = index === sections.length - 1 && feed.hasNextPage;
       return [
-        { kind: "section", key: `section-${section.title}`, title: section.title, count: capped && last && count !== undefined ? `${count}+` : count, sort: index === 0 },
+        { kind: "section", key: `section-${section.title}`, title: section.title, count: capped && last && typeof count === "number" ? `${count}+` : count, sort: index === 0 },
         ...section.jobs.map(job),
       ];
     });
