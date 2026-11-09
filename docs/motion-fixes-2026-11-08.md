@@ -228,6 +228,9 @@ What made that possible:
   their own: FlashList's style isn't updated natively, so its color lagged and
   covered the page.
 - `TopEdgeFade` is 24 layers of the sheet's color rather than a drawn gradient.
+- `TopEdgeBlur`'s tint is the same kind of layers. The material already changed
+  with the page, but the color handed to SwiftUI waited for a redraw, so the
+  band sat at the wrong shade for about 280ms and then popped (owner, Nov 9).
 
 Still moving after the flip: iOS's glass on the tab bar and page buttons, about
 0.4s, which telling it the scheme made slower (0.7s), and the ticket's punched
