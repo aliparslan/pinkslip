@@ -281,8 +281,23 @@ export async function submitForm(): Promise<SubmitReport> {
       || SUCCESS.test(document.body.innerText) || (location.href !== startUrl && /confirm|thank|success/i.test(location.href))) {
       return { status: "submitted", errors: [], url: location.href };
     }
-    const challenge = [...document.querySelectorAll("iframe")].find((frame) =>
-      /recaptcha\/(api2|enterprise)\/bframe|hcaptcha/.test(frame.src) && frame.getBoundingClientRect().height > 100);
+    // Ashby's own box for one it wouldn't take: its invisible captcha said no,
+    // or something else went wrong. Either way nothing was sent.
+    const refused = document.querySelector(".ashby-application-form-failure-container");
+    if (refused) {
+      return /captcha|robot/i.test(text(refused))
+        ? { status: "captcha", errors: [], url: location.href }
+        : { status: "invalid", errors: [text(refused)], url: location.href };
+    }
+    // Google keeps its challenge frame on the page from the start, hidden far
+    // above the screen and tall enough to pass for a real one. Only a
+    // challenge the person could see counts (owner, 2026-11-08: every Ashby
+    // send read as a captcha half a second after Submit, and stopped there).
+    const challenge = [...document.querySelectorAll("iframe")].find((frame) => {
+      if (!/recaptcha\/(api2|enterprise)\/bframe|hcaptcha/.test(frame.src)) return false;
+      const box = frame.getBoundingClientRect();
+      return getComputedStyle(frame).visibility === "visible" && box.width > 100 && box.height > 100 && box.bottom > 0;
+    });
     if (challenge) return { status: "captcha", errors: [], url: location.href };
     // Greenhouse asks for the code it just emailed: said at once rather than
     // after the whole wait, so the code can go in while it's fresh (owner,
