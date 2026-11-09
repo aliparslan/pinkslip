@@ -22,6 +22,8 @@ import {
   SendError,
   answerSend,
   deliverSendCode,
+  sendForCodeEmail,
+  sendsTurn,
   hasSendWaitingForCode,
   stopSend,
   describeSent,
@@ -280,6 +282,12 @@ describe("the send engine", () => {
     const entered = await enterCode(page, "Ab12Cd34");
     expect(page.typed).toEqual(['[data-pinkslip-code="0"] Ab12Cd34']);
     expect(entered).toEqual({ status: "submitted", url: "https://acme.example/thanks", text: "Thank you for applying to Acme!" });
+  });
+
+  it("reads a turned-down code as the code, not as questions", async () => {
+    const report = { status: "invalid", errors: ["Security code", "security-input-1", "security-input-2"], url: "https://acme.example/apply" };
+    const page = { run: async (body: string) => body === CODE_PROMPT_BODY ? JSON.stringify({ asks: false, boxes: 8 }) : JSON.stringify(report), type: async () => undefined, wait: async () => undefined, url: () => report.url } as unknown as Parameters<typeof enterCode>[0];
+    expect(await enterCode(page, "WRONG123")).toEqual({ status: "code_needed" });
   });
 
   it("reads the confirmation when the code's last letter sends the form", async () => {
@@ -616,6 +624,69 @@ describe("running a send", () => {
     context.sqlite.run("UPDATE apply_sends SET status = 'needs_you', finished_at = '2026-10-24T15:00:00Z' WHERE id = ?", [send.id]);
     expect(await stopSend(context.env, "u1", send.id)).toMatchObject({ status: "needs_you", stopped: true, waiting_until: null });
     await expect(stopSend(context.env, "u2", send.id)).rejects.toMatchObject({ code: "not_found" });
+  });
+
+  /** Two sends waiting on codes: one to Acme, one to Globex. */
+  async function twoCompanies(context: ReturnType<typeof setup>) {
+    await saveApplyResume(context.bucket as unknown as R2Bucket, "u1", PDF, "Ali Arslan Resume");
+    const acme = await queueSend(context.env, "u1", { jobId: "j1", dryRun: false }, { fetcher: context.greenhouseUp });
+    const globex = await queueSend(context.env, "u1", { jobId: "j2", dryRun: false }, { fetcher: context.greenhouseUp });
+    context.sqlite.run("INSERT INTO companies (id, name, ats_type, ats_slug) VALUES ('globex', 'Globex', 'greenhouse', 'globex')");
+    context.sqlite.run("UPDATE jobs SET company_id = 'globex' WHERE id = 'j2'");
+    context.sqlite.run("UPDATE apply_sends SET status = 'code_needed', updated_at = '2026-11-08T23:59:29.000Z' WHERE id = ?", [acme.id]);
+    context.sqlite.run("UPDATE apply_sends SET status = 'submitting', updated_at = '2026-11-08T23:59:31.000Z' WHERE id = ?", [globex.id]);
+    return { acme, globex };
+  }
+
+  it("gives a code to the application its email names, not the newest", async () => {
+    const context = setup();
+    const { acme, globex } = await twoCompanies(context);
+    expect(await sendForCodeEmail(context.db, "u1", "Security code for your application to Acme")).toBe(acme.id);
+    expect(await sendForCodeEmail(context.db, "u1", "Security code for your application to Globex, Inc.")).toBe(globex.id);
+    expect(await sendForCodeEmail(context.db, "u1", "Fwd: Security code for your application to GLOBEX")).toBe(globex.id);
+  });
+
+  it("doesn't guess between applications when the email names neither", async () => {
+    const context = setup();
+    const { globex } = await twoCompanies(context);
+    expect(await sendForCodeEmail(context.db, "u1", "Security code for your application to Initech")).toBeNull();
+    // With only one waiting there's nothing to mix up, whatever the name.
+    context.sqlite.run("UPDATE apply_sends SET status = 'submitted' WHERE id != ?", [globex.id]);
+    expect(await sendForCodeEmail(context.db, "u1", "Security code for your application to Initech")).toBe(globex.id);
+  });
+
+  it("applies to one company one at a time, so its codes can't cross", async () => {
+    const context = setup();
+    await saveApplyResume(context.bucket as unknown as R2Bucket, "u1", PDF, "Ali Arslan Resume");
+    const first = await queueSend(context.env, "u1", { jobId: "j1", dryRun: false }, { fetcher: context.greenhouseUp });
+    const second = await queueSend(context.env, "u1", { jobId: "j2", dryRun: false }, { fetcher: context.greenhouseUp });
+    const now = new Date();
+    context.sqlite.run("UPDATE apply_sends SET created_at = ?, updated_at = ? WHERE id = ?", [new Date(now.getTime() - 2_000).toISOString(), now.toISOString(), first.id]);
+    context.sqlite.run("UPDATE apply_sends SET created_at = ?, updated_at = ? WHERE id = ?", [new Date(now.getTime() - 1_000).toISOString(), now.toISOString(), second.id]);
+    expect(await sendsTurn(context.env, first.id, now)).toBe(true);
+    expect(await sendsTurn(context.env, second.id, now)).toBe(false);
+    for (const status of ["running", "submitting", "code_needed"]) {
+      context.sqlite.run("UPDATE apply_sends SET status = ? WHERE id = ?", [status, first.id]);
+      expect(await sendsTurn(context.env, second.id, now)).toBe(false);
+    }
+    context.sqlite.run("UPDATE apply_sends SET status = 'submitted' WHERE id = ?", [first.id]);
+    expect(await sendsTurn(context.env, second.id, now)).toBe(true);
+  });
+
+  it("isn't held up by a send to another company, or one that has died", async () => {
+    const context = setup();
+    await saveApplyResume(context.bucket as unknown as R2Bucket, "u1", PDF, "Ali Arslan Resume");
+    const first = await queueSend(context.env, "u1", { jobId: "j1", dryRun: false }, { fetcher: context.greenhouseUp });
+    const second = await queueSend(context.env, "u1", { jobId: "j2", dryRun: false }, { fetcher: context.greenhouseUp });
+    const now = new Date();
+    context.sqlite.run("UPDATE apply_sends SET created_at = ?, status = 'code_needed', updated_at = ? WHERE id = ?", [new Date(now.getTime() - 2_000).toISOString(), new Date(now.getTime() - 21 * 60_000).toISOString(), first.id]);
+    context.sqlite.run("UPDATE apply_sends SET created_at = ? WHERE id = ?", [new Date(now.getTime() - 1_000).toISOString(), second.id]);
+    expect(await sendsTurn(context.env, second.id, now)).toBe(true);
+    context.sqlite.run("UPDATE apply_sends SET updated_at = ? WHERE id = ?", [now.toISOString(), first.id]);
+    expect(await sendsTurn(context.env, second.id, now)).toBe(false);
+    context.sqlite.run("INSERT INTO companies (id, name, ats_type, ats_slug) VALUES ('globex', 'Globex', 'greenhouse', 'globex')");
+    context.sqlite.run("UPDATE jobs SET company_id = 'globex' WHERE id = 'j2'");
+    expect(await sendsTurn(context.env, second.id, now)).toBe(true);
   });
 
   it("takes a forwarded code that comes while the send is still submitting", async () => {

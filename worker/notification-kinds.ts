@@ -266,7 +266,7 @@ export function applySendNotification(send: { status: string; company: string; t
       return {
         kind: "apply_needs_you" as const,
         title: send.company,
-        body: what(send.needs <= 1 ? "One question to finish" : `${send.needs} questions to finish`),
+        body: what(send.needs === 0 ? "Got stuck. Over to you" : send.needs === 1 ? "One question to finish" : `${send.needs} questions to finish`),
         url,
       };
     case "blocked":

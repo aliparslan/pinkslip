@@ -334,7 +334,8 @@ async function notifySend(env: Env, row: SendRow, status: ApplySendStatus, needs
   const job = await env.DB.prepare(
     "SELECT j.title, c.name AS company FROM jobs j JOIN companies c ON c.id = j.company_id WHERE j.id = ?"
   ).bind(row.job_id).first<{ title: string; company: string }>();
-  const push = applySendNotification({ status, company: job?.company ?? "Your application", title: job?.title ?? "", jobId: row.job_id, needs: needs.length });
+  // Only what has a field to answer is a question; the form's own errors aren't.
+  const push = applySendNotification({ status, company: job?.company ?? "Your application", title: job?.title ?? "", jobId: row.job_id, needs: needs.filter((need) => need.ref).length });
   if (!push) return;
   await scheduleNotification(env.DB, {
     userId: row.user_id,
@@ -631,6 +632,65 @@ export async function stopSend(env: Env, userId: string, sendId: string, deps: S
 }
 
 // ─── Codes ───────────────────────────────────────────────────────────────────
+
+/** The longest a queue of applications to one company could be held. */
+const IN_LINE_FOR_MS = 20 * 60_000;
+
+/**
+ * Whether a send can start. Greenhouse's code email names the company and not
+ * the job, so two applications to one company at once can't tell their codes
+ * apart (owner, 2026-11-08: three to Twitch, every code to one of them). Each
+ * waits until those queued before it are done, so a company only ever has one
+ * code on its way. One that's been still this long has died, and holds no one.
+ */
+export async function sendsTurn(env: Env, sendId: string, now = new Date()): Promise<boolean> {
+  const row = await loadRow(env.DB, sendId);
+  if (!row || row.status !== "queued" || row.ats !== "greenhouse" || row.dry_run) return true;
+  const ahead = await env.DB.prepare(
+    `SELECT 1 AS hit FROM apply_sends s
+     JOIN jobs theirs ON theirs.id = s.job_id
+     JOIN jobs mine ON mine.id = ?
+     WHERE s.user_id = ? AND s.id != ? AND s.ats = 'greenhouse' AND s.dry_run = 0
+       AND theirs.company_id = mine.company_id
+       AND s.status IN ('queued', 'running', 'submitting', 'code_needed')
+       AND s.updated_at >= ?
+       AND (s.created_at < ? OR (s.created_at = ? AND s.id < ?))
+     LIMIT 1`
+  ).bind(row.job_id, row.user_id, sendId, new Date(now.getTime() - IN_LINE_FOR_MS).toISOString(), row.created_at, row.created_at, sendId).first();
+  return !ahead;
+}
+
+/** Greenhouse's subject, "Security code for your application to Twitch". */
+export function codeEmailCompany(subject: string): string | null {
+  return subject.match(/\bapplication to\s+(.+?)\s*$/i)?.[1] ?? null;
+}
+
+const companyKey = (name: string) => name.toLowerCase().replace(/\b(inc|llc|ltd|corp|corporation|co|company)\b/g, " ").replace(/[^a-z0-9]+/g, "");
+
+function sameCompany(one: string, other: string): boolean {
+  const [a, b] = [companyKey(one), companyKey(other)];
+  if (!a || !b) return false;
+  return a === b || (Math.min(a.length, b.length) >= 3 && (a.includes(b) || b.includes(a)));
+}
+
+/**
+ * The send a code email is for: the one waiting at the company its subject
+ * names. If the names differ (Greenhouse's isn't always the catalog's), the
+ * only one waiting; with several and no match it goes to none of them, since
+ * a wrong code ends a send, and its push asks the person.
+ */
+export async function sendForCodeEmail(db: D1Database, userId: string, subject: string): Promise<string | null> {
+  const waiting = (await db.prepare(
+    `SELECT s.id, s.status, c.name AS company FROM apply_sends s
+     JOIN jobs j ON j.id = s.job_id JOIN companies c ON c.id = j.company_id
+     WHERE s.user_id = ? AND s.ats = 'greenhouse' AND s.status IN ('code_needed', 'submitting')
+     ORDER BY s.updated_at`
+  ).bind(userId).all<{ id: string; status: string; company: string }>()).results ?? [];
+  const named = codeEmailCompany(subject);
+  const matching = named ? waiting.filter((send) => sameCompany(send.company, named)) : [];
+  const candidates = matching.length > 0 ? matching : waiting.length === 1 ? waiting : [];
+  return (candidates.find((send) => send.status === "code_needed") ?? candidates[0])?.id ?? null;
+}
 
 /** Hands a code to the person's send that's waiting for one, or about to:
  * Greenhouse emails the code the moment Submit is pressed, and forwarding

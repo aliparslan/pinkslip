@@ -235,6 +235,11 @@ export type Submitted =
   | { status: "captcha" | "no_button" | "unknown"; url: string }
   | { status: "invalid"; errors: string[]; url: string };
 
+/** A code Greenhouse turned down comes back as its boxes' own errors
+ * ("Security code", "security-input-3"), not as questions (owner, 2026-11-08:
+ * eight of them read as eight questions to answer). */
+const aboutTheCode = (error: string) => /security[\s-]*(code|input)/i.test(error);
+
 async function afterSubmit(page: FormPage, report: SubmitReport): Promise<Submitted> {
   if (report.status === "submitted") {
     return { status: "submitted", url: report.url, text: await page.run(PAGE_TEXT_BODY).catch(() => "") };
@@ -243,7 +248,10 @@ async function afterSubmit(page: FormPage, report: SubmitReport): Promise<Submit
     const prompt = JSON.parse(await page.run(CODE_PROMPT_BODY).catch(() => "{}")) as { asks?: boolean };
     if (prompt.asks) return { status: "code_needed" };
   }
-  if (report.status === "invalid") return { status: "invalid", errors: report.errors, url: report.url };
+  if (report.status === "invalid") {
+    if (report.errors.length > 0 && report.errors.every(aboutTheCode)) return { status: "code_needed" };
+    return { status: "invalid", errors: report.errors, url: report.url };
+  }
   // Asked for a code, but not one Pinkslip can find the boxes for.
   if (report.status === "code") return { status: "unknown", url: report.url };
   // Nothing recognisable, but the form is still there and says what's wrong:

@@ -1,10 +1,15 @@
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from "cloudflare:workers";
 import type { Env } from "../types";
-import { enterSendCode, expireSendCode, failSend, queueFromTrigger, releaseKeptBrowser, runSend } from "./sends";
+import { enterSendCode, expireSendCode, failSend, queueFromTrigger, releaseKeptBrowser, runSend, sendsTurn } from "./sends";
 
 type SendParams = { send_id?: string; email?: string; job?: string; dry_run?: boolean };
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/** How often a send behind another to its company looks again, and how many
+ * times: 20 minutes, a little over two full waits for a code. */
+const TURN_CHECK = "15 seconds";
+const TURN_CHECKS = 80;
 
 /**
  * One auto-apply send, as a Workflow so it outlives the request and can wait
@@ -23,6 +28,12 @@ export class ApplySendWorkflow extends WorkflowEntrypoint<Env, SendParams> {
       const queued = await step.do("queue", { retries: { limit: 2, delay: "5 seconds" } },
         () => queueFromTrigger(this.env, sendId, event.payload));
       if (!queued.ok) return queued;
+    }
+
+    for (let check = 0; check < TURN_CHECKS; check += 1) {
+      const turn = await step.do(`its turn? ${check}`, { retries: { limit: 2, delay: "5 seconds" } }, () => sendsTurn(this.env, sendId));
+      if (turn) break;
+      await step.sleep(`the send ahead ${check}`, TURN_CHECK);
     }
 
     let sent;
