@@ -163,7 +163,7 @@ describe("applications API", () => {
       const response = await app.request(path, {
         ...init,
         headers: { "content-type": "application/json", "x-user": init.user ?? "u1" },
-      }, { DB: db } as Env);
+      }, { DB: db } as Env, { waitUntil() {}, passThroughOnException() {} } as unknown as ExecutionContext);
       return { status: response.status, body: response.status === 204 ? null : await response.json() as any };
     };
     const patchJob = (id: string, body: object) => call(`/jobs/${id}`, { method: "PATCH", body: JSON.stringify(body) });
