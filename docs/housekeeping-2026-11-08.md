@@ -407,3 +407,55 @@ icons 3. 394 use Google's 128px favicon, 15 are right but under 128px, and 5 sho
 initials. Every one was checked by eye, which caught blank white-on-clear icons,
 hosts' default favicons (WP Engine, Vercel), GitHub's generated identicons and
 App Store apps from a different company of the same name.
+
+## 10. Oracle, moved boards and the rest of the list
+
+**Oracle reader.** `worker/adapters/oracle.ts` reads Oracle Recruiting Cloud's
+public candidate API. A source is `host/site`, each poll asks for United States
+postings only, and descriptions are fetched per job. Live as Worker `85c745c6`.
+
+Migrations 0119 to 0121 add 15 companies, using the same off, backfill, on order
+as section 9: 750 open jobs and no alerts.
+
+| Company | Source | Jobs loaded |
+|---|---|---|
+| JPMorgan Chase | Oracle | 344 |
+| Oracle | Oracle | 166 |
+| Texas Instruments | Oracle | 54 |
+| Honeywell | Oracle | 47 |
+| American Express | Oracle | 32 |
+| Visa | Workday | 22 |
+| BNY | Oracle | 21 |
+| Fortinet | Oracle | 19 |
+| Akamai | Oracle | 18 |
+| Unity | Workday | 13 |
+| LiveRamp | Ashby | 6 |
+| AQR | Greenhouse | 4 |
+| Beacon Software | Ashby | 3 |
+| Aircall | Greenhouse | 1 |
+| Within (was Klarity) | Ashby | 0 |
+
+**Not added, and why.**
+
+- Qualcomm: 793 US jobs, more than the Eightfold reader's 600 cap, and its board
+  rate-limits a full read.
+- Walmart: its own GraphQL site. Electronic Arts: `jobs.ea.com/en_US/careers`,
+  which the Avature reader's path check refuses. Sandisk: no board link found.
+- Fanatics: its Oracle site holds one US job, so the real board is elsewhere.
+- Sainsbury's: UK only. G-Research: its Workday site has no US filter.
+- Tilde Research and Legend Labs: Ashby's public API is off for them. Pryzm,
+  Anything and Carbon Robotics: no public board found.
+- SAS (iCIMS) and Tyler Technologies (Jobvite) still need readers.
+- Tesla stays off: its careers site refuses the reader (403).
+
+**Jev.** 8 of the 11 flagged jobs were rejected in review; GitLab's had gone, one
+Relativity row was already rejected, and xAI's senior role and Cohere's stay open.
+Jev's role is unchanged and still waits on the owner. 253 of about 5,000 location
+rejections have text no filter can read ("Hybrid", "In-Office", "Americas"). Jev
+sampled 27 of those and said US-eligible on all 27.
+
+**Apply for me.** Greenhouse and Ashby hold 7,506 open jobs. No new platform is
+worth building yet: SmartRecruiters has 46 open jobs, Lever's submit is behind a
+captcha, and Workday, Oracle and the big companies' own sites need an account per
+employer. Of 65 real sends, 17 went through and 40 stopped to ask a question, so
+the gain is in answering more of those.
