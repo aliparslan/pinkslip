@@ -37,6 +37,11 @@ export function queueable(job: { source_type?: string | null; closed_at?: string
  * form's own error message or a file to upload. */
 export const canAnswer = (need: SendNeed) => Boolean(need.ref) && need.kind !== "error" && need.kind !== "file";
 
+/** Whether the questions sheet has something to ask. What the form itself
+ * turned back has nothing the sheet can show, and an empty sheet covers the
+ * page with nothing to close (owner, 2026-11-08: trapped until a restart). */
+export const sheetCanAsk = (send: Pick<ApplySend, "needs">) => send.needs.length > 0 && send.needs.every(canAnswer);
+
 /** A real stop that no longer waits: dropped (Don't send), or its day is up
  * (owner, 2026-11-04). Servers before migration 0110 don't say, and their
  * stops still wait. */
@@ -187,7 +192,7 @@ export function liveBar(
   // Several stops whose questions the one sheet takes are one ask, not one
   // after another (owner, 2026-11-08: Stripe's three replaced Reddit's one,
   // then Reddit's came back).
-  const answerable = run.filter((send) => stopped(send) && send.needs.every(canAnswer));
+  const answerable = run.filter((send) => stopped(send) && sheetCanAsk(send));
   const code = run.find((send) => send.status === "code_needed" && !fetching(send));
   const waiting = code ?? (answerable.length > 1 ? null : run.find((send) => stopped(send) || send.status === "blocked"));
   if (going.length === 0 && !waiting && answerable.length < 2) return null;
@@ -199,7 +204,7 @@ export function liveBar(
   const detail = going.length > 0 ? `${going.length} applying` : undefined;
   if (waiting) {
     const asks = waiting.status === "code_needed" ? { words: `${name(waiting)} needs Greenhouse's code`, action: "Enter" }
-      : waiting.status === "blocked" ? { words: `${name(waiting)} needs you`, action: "Finish" }
+      : waiting.status === "blocked" || !sheetCanAsk(waiting) ? { words: `${name(waiting)} needs you`, action: "Finish" }
       : { words: `${name(waiting)} needs ${waiting.needs.length === 1 ? "1 answer" : `${waiting.needs.length} answers`}`, action: "Answer" };
     return { state: { kind: "needs", company: name(waiting), ...asks, ...(detail ? { detail } : {}) }, queue, jobId: waiting.job_id };
   }

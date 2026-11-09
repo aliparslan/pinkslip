@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ApplySend } from "../shared/auto-apply";
 import {
-  answerSource, followedSend, lapsed, liveBar, queueable, liveBarDone, needControl, refusal, sendButtonState, splitResume,
+  answerSource, followedSend, lapsed, liveBar, queueable, liveBarDone, needControl, refusal, sendButtonState, splitResume, sheetCanAsk,
 } from "../apps/native/src/features/redesign/send-facts";
 
 const send = (patch: Partial<ApplySend> = {}): ApplySend => ({
@@ -134,6 +134,15 @@ describe("the live bar", () => {
     expect(liveBar([job("Toast", { status: "needs_you", needs, finished_at: minutesAgo(1) })], at)?.state)
       .toEqual({ kind: "needs", company: "Toast", words: "Toast needs 1 answer", action: "Answer" });
     expect(liveBar([job("Toast", { status: "code_needed" })], at)?.state).toMatchObject({ words: "Toast needs Greenhouse's code", action: "Enter" });
+  });
+
+  test("sends what the form turned back to Finish, since the sheet has nothing to ask", () => {
+    const turnedBack = [{ label: "Security code", kind: "unknown" }, { label: "security-input-1", kind: "unknown" }];
+    expect(sheetCanAsk({ needs: turnedBack })).toBe(false);
+    expect(sheetCanAsk({ needs: [] })).toBe(false);
+    expect(sheetCanAsk({ needs: [{ ref: "zip", label: "Postal code", kind: "text" }] })).toBe(true);
+    expect(liveBar([job("Twitch", { status: "needs_you", needs: turnedBack, finished_at: minutesAgo(1) })], at)?.state)
+      .toEqual({ kind: "needs", company: "Twitch", words: "Twitch needs you", action: "Finish" });
   });
 
   test("says it's checking once every field is filled, then sending", () => {

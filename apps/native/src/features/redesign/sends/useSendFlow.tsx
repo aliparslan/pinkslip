@@ -11,7 +11,7 @@ import { haptics } from "../../../platform/haptics";
 import { localResumeFile } from "../../../platform/resume-file";
 import type { DetailJob } from "../../job-detail/useJobPage";
 import { plainText } from "../job-facts";
-import { askedNeeds, followedSend, refusal, sendButtonState, SENDABLE, stoppable } from "../send-facts";
+import { askedNeeds, followedSend, refusal, sendButtonState, SENDABLE, sheetCanAsk, stoppable } from "../send-facts";
 import type { SendOpening } from "./LiveSends";
 import { useGettingCode } from "./code-wait";
 import { CodeSheet, NeedsSheet, type SendJob } from "./SendSheets";
@@ -132,7 +132,7 @@ export function useSendFlow(job: DetailJob, { applied, closed, applyMyself, open
   const opened = useRef(false);
   useEffect(() => {
     if (!opening || opened.current || !send) return;
-    if (opening === "answer" && send.status === "needs_you") setSheet("needs");
+    if (opening === "answer" && send.status === "needs_you" && sheetCanAsk(send)) setSheet("needs");
     else if (opening === "code" && send.status === "code_needed") setSheet("code");
     else if (opening === "finish" && (send.status === "blocked" || send.status === "needs_you")) applyMyself();
     else return;
@@ -172,7 +172,7 @@ export function useSendFlow(job: DetailJob, { applied, closed, applyMyself, open
 
   const sendJob: SendJob = { company, domain: job.company_domain, title: plainText(job.title) };
   const sheets: ReactNode = send ? <>
-    <SheetModal open={sheet === "needs" && send.status === "needs_you"} onClosed={() => setSheet(null)}>
+    <SheetModal open={sheet === "needs" && send.status === "needs_you" && sheetCanAsk(send)} onClosed={() => setSheet(null)}>
       <NeedsSheet key={send.id} job={sendJob} needs={askedNeeds(send)} dryRun={send.dry_run} pending={answer.isPending} onDontSend={stop}
         onSend={(answers) => answer.mutate({ sendId: send.id, answers }, {
           onSuccess: () => setSheet(null),
