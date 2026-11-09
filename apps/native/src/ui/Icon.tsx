@@ -92,13 +92,11 @@ export function TabIcon({ name, size = 24, selected }: { name: TabIconName; size
   // Read on every render, resting too: useUnistyles only follows a theme change
   // for what's been read, and a tab selected later came up in the old theme.
   const ink = theme.ui.color.ink;
-  const soft = theme.ui.color["ink-4"];
   const fill = selected ? TAB_ICON_FILLS[name] : undefined;
   if (!fill) return <Icon name={name} size={size} tone={selected ? "ink" : "ink-2"} />;
   // The same outline the resting icon adds to Phosphor's regular line.
   const edge = { strokeWidth: LINE * 256 - 16, strokeLinejoin: "round" as const };
   return <Svg width={size} height={size} viewBox="0 0 256 256">
-    {fill.behind ? <Path d={fill.behind} fill={soft} stroke={soft} {...edge} /> : null}
     <Path d={fill.solid} fillRule="evenodd" fill={ink} stroke={ink} {...edge} />
   </Svg>;
 }

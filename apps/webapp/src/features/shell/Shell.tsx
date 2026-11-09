@@ -1,6 +1,6 @@
 import { Link, useCanGoBack, useMatches, useRouter, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { BookmarksSimple, Briefcase, CaretLeft, UserCircle, type Icon as PhosphorIcon } from "@phosphor-icons/react";
+import { BookmarkSimple, Briefcase, CaretLeft, UserCircle, type Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { IconButtonAnchor, Tooltip } from "../../kit";
 import { adminPages, pages, type SectionPath } from "../navigation/pages";
 import { backTarget, jobRoot } from "../navigation/back-target";
@@ -18,7 +18,7 @@ interface Destination {
 
 const destinations: Destination[] = [
   { label: "Jobs", to: "/", root: "jobs", icon: Briefcase },
-  { label: "Tracker", to: "/library/saved", root: "library", icon: BookmarksSimple },
+  { label: "Tracker", to: "/library/saved", root: "library", icon: BookmarkSimple },
   { label: "You", to: "/you", root: "you", icon: UserCircle },
 ];
 

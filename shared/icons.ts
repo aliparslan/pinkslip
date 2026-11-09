@@ -18,7 +18,7 @@ export const ICONS = {
   today: "CalendarBlank",
   jobs: "Briefcase",
   search: "MagnifyingGlass",
-  tracker: "BookmarksSimple",
+  tracker: "BookmarkSimple",
   you: "UserCircle",
   editSearch: "SlidersHorizontal",
   notifications: "Bell",

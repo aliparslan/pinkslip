@@ -6,15 +6,12 @@
  * it). What was a line inside the icon becomes a gap: the calendar's rule,
  * the briefcase's handle, waist and clasp, the person in the circle.
  *
- * Search has no inside worth filling, so it stays the same line, in ink. The
- * Tracker's back bookmark is a tone lighter (`behind`): as a line beside a
- * solid front it read as a leftover stroke (owner, 2026-11-08).
+ * Search has no inside worth filling, so it stays the same line, in ink.
  */
 export type TabIconName = "today" | "jobs" | "tracker" | "search" | "you";
 
 export interface TabIconFill {
   solid: string;
-  behind?: string;
 }
 
 export const TAB_ICON_FILLS: Partial<Record<TabIconName, TabIconFill>> = {
@@ -29,8 +26,7 @@ export const TAB_ICON_FILLS: Partial<Record<TabIconName, TabIconFill>> = {
       + "M112 100h32a10 10 0 0 1 0 20h-32a10 10 0 0 1 0-20Z",
   },
   tracker: {
-    solid: "M160 56H64a16 16 0 0 0-16 16v152a8 8 0 0 0 12.65 6.51L112 193.83l51.36 36.68A8 8 0 0 0 176 224V72a16 16 0 0 0-16-16Z",
-    behind: "M88 24H192a16 16 0 0 1 16 16V192a16 16 0 0 1-32 0V72a16 16 0 0 0-16-16H88a16 16 0 0 1 0-32Z",
+    solid: "M184 32H72a16 16 0 0 0-16 16v176a8 8 0 0 0 12.24 6.78L128 193.43l59.77 37.35A8 8 0 0 0 200 224V48a16 16 0 0 0-16-16Z",
   },
   you: {
     solid: "M128 24a104 104 0 1 0 104 104A104.11 104.11 0 0 0 128 24Z"

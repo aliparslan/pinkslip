@@ -297,11 +297,9 @@ on one line share a size.
   `ink` on the gray oval, with no pink. One drawing, two states: the outer
   edge never changes, and what was a line inside becomes a gap
   (`ui/tab-icons.ts`; a test holds each to Phosphor's edge). Search has no
-  inside to fill, so it stays the same line in ink. The Tracker's back
-  bookmark is the one soft part, `ink-4`, since a line beside a solid front
-  read as a leftover stroke. Only the count is pink.
-  The tabs are Today (the plain calendar), Jobs, Tracker (the stacked
-  bookmarks, as the website's Library), Search and You (the user circle), 56
+  inside to fill, so it stays the same line in ink. Only the count is pink.
+  The tabs are Today (the plain calendar), Jobs, Tracker (one bookmark, on the
+  website too; owner, 2026-11-09), Search and You (the user circle), 56
   apart; the 64 × 46 oval is wider than that (owner, 2026-10-15).
 - **Search** (2026-10-15): the Search tab finds jobs and companies, so
   companies need no search of their own in settings. Jobs' field says
