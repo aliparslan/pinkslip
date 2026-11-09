@@ -22,6 +22,10 @@ export const ROLE_OPTIONS = [
       "forward deployed software engineer",
       "forward-deployed software engineer",
       "forward deployment software engineer",
+      // Customer-facing engineering, the same work under another name. Without a
+      // role of their own these jobs matched nobody (owner, 2026-11-09).
+      "solutions architect",
+      "solution architect",
     ],
     departments: ["engineering", "forward deployed"],
   },
