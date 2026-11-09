@@ -62,17 +62,17 @@ export const ListMotionCell = forwardRef<View, ViewProps & { index: number }>(fu
   </Animated.View>;
 });
 
-const ROWS_DIM = timing({ duration: 120, curve: [0.23, 1, 0.32, 1] });
-const ROWS_OUT = timing({ duration: 90, curve: [0.23, 1, 0.32, 1] });
-const ROWS_IN = timing({ duration: motion.list.fade, curve: [0.33, 1, 0.68, 1] });
+const ROWS_DIM = timing({ duration: 90, curve: [0.23, 1, 0.32, 1] });
+const ROWS_IN = timing({ duration: 130, curve: [0.33, 1, 0.68, 1] });
 /** While the server finds the new rows, the old ones say they're on their way out. */
 const ROWS_WAITING = 0.4;
 
 /**
  * Swaps a list for a different one (a chip, the filters), with the cost of a
- * chip in mind: tens of times a day, so nothing slides. The old rows fade, the
- * new ones fade in where they belong. When the new rows are still on their
- * way (`waiting`), the old ones dim at once and stay dim until they land.
+ * chip in mind: tens of times a day, so nothing slides and nothing waits on an
+ * animation. The rows dim, and the new ones take their place while dim and
+ * come up, so the screen is never empty. When the new rows are still on their
+ * way (`waiting`), the old ones stay dim until they land.
  *
  * `list` says which list `latest` is: while it stays the same, new rows go
  * straight through, so paging, a new posting or a stage move plays as before.
@@ -93,16 +93,14 @@ export function useRowsSwap<T, L>(latest: T, list: L, waiting = false): { rows: 
       frame = requestAnimationFrame(() => {
         frame = requestAnimationFrame(() => { fade.value = withTiming(1, ROWS_IN); });
       });
-    } else if (waiting) {
-      fade.value = withTiming(ROWS_WAITING, ROWS_DIM);
     } else {
-      fade.value = withTiming(0, ROWS_OUT);
-      // Rendering them starts now, not when the fade ends: by the time they're
-      // ready the old rows have gone, and the screen doesn't sit empty.
-      frame = requestAnimationFrame(() => {
-        settled.current = newest.current;
-        render();
-      });
+      fade.value = withTiming(ROWS_WAITING, ROWS_DIM);
+      if (!waiting) {
+        frame = requestAnimationFrame(() => {
+          settled.current = newest.current;
+          render();
+        });
+      }
     }
     return () => cancelAnimationFrame(frame);
   }, [changing, waiting, list, fade]);

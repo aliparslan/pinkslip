@@ -25,7 +25,7 @@ export function themeFor(preference = appearancePreference(), increasedContrast 
 }
 
 /** The fade that hides a theme change (ThemeCurtain), while it's mounted. */
-let curtain: ((next: ThemeName, change: () => void) => void) | null = null;
+let curtain: ((change: () => void) => void) | null = null;
 
 export function setThemeCurtain(play: typeof curtain) {
   curtain = play;
@@ -51,7 +51,7 @@ export function setAppearancePreference(preference: AppearancePreference) {
   if (curtain && motionTrial("themeFade") && UnistylesRuntime.themeName !== next) {
     // The picker answers now; the colors change once they're covered.
     notify();
-    curtain(next, apply);
+    curtain(apply);
   } else apply();
 }
 

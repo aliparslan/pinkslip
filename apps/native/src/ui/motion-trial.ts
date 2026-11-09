@@ -33,8 +33,8 @@ export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; pro
   // the page's title landed a row too low, over the next row's text).
   { id: "zoomLanding", title: "Zoom lands on the title", today: "The page's top lands on the row", proposed: "Its logo and title land on the row's" },
   // The owner asked for these two to be reviewed and workshopped (Nov 8).
-  { id: "themeFade", title: "Light and dark", today: "It cuts, and parts catch up late", proposed: "It fades through the new color" },
-  { id: "chipFade", title: "A chip changes the list", today: "The rows cut over, late on Jobs", proposed: "Rows dim at once, then fade over" },
+  { id: "themeFade", title: "Light and dark", today: "It cuts, and parts catch up late", proposed: "The page ramps to the new color" },
+  { id: "chipFade", title: "A chip changes the list", today: "The rows cut over, late on Jobs", proposed: "Rows dim, the new ones come up" },
 ];
 
 const key = (id: MotionTrial) => `kit-motion-${id}`;

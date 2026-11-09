@@ -1,7 +1,7 @@
 import { feedParams, selectedStages, type FeedSearch } from "@pinkslip/core/feed-criteria";
 import { timeAgo } from "@pinkslip/core/utils";
 import { CAREER_STAGE_OPTIONS } from "@pinkslip/domain/search-profile";
-import { useFeed, useStats, useViewedJobs } from "@pinkslip/data";
+import { useFeed, usePrefetchFeed, useStats, useViewedJobs } from "@pinkslip/data";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Link, useNavigation, useRoute } from "expo-router";
 import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
@@ -189,7 +189,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const stale = Boolean(lastPolled && Date.now() - new Date(lastPolled).getTime() > POLL_STALE_AFTER_MS);
   const header = <View>
     {typeof top === "function" ? top(offline) : top}
-    {(chips ?? !searching) ? <QuickFilters search={search} stages={available} /> : null}
+    {(chips ?? !searching) ? <QuickFilters search={search} stages={available} defaults={defaults} ready={feed.isSuccess && !feed.isPlaceholderData} /> : null}
     {stale && lastPolled ? <View style={styles.stale}>
       <Icon name="warning" size={16} tone="ink-3" />
       <Text role="footnote" tone="ink-2">Updated {timeAgo(lastPolled)}. New jobs may be missing.</Text>
@@ -379,7 +379,28 @@ const stageLabel = (id: string) => CAREER_STAGE_OPTIONS.find((option) => option.
 
 /** One tap each: Remote, $100K+, and a chip per stage when the search covers
  * more than one. Everything else is in Edit search. */
-function QuickFilters({ search, stages }: { search: FeedSearch; stages: readonly string[] }) {
+function QuickFilters({ search, stages, defaults, ready }: { search: FeedSearch; stages: Parameters<typeof feedParams>[1]; defaults: Parameters<typeof feedParams>[2]; ready: boolean }) {
+  const ahead = useMotionTrial("chipFade");
+  const prefetch = usePrefetchFeed();
+  const shown = stages.length > 1 ? stages : [];
+  const plain = !search.loc && search.min === undefined && !search.stage && !search.q;
+  // A chip's list takes the server about a second, so each one is fetched
+  // before it's tapped, one at a time, from the plain list only.
+  useEffect(() => {
+    if (!ahead || !ready || !plain) return;
+    let stopped = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        const nexts: FeedSearch[] = [{ ...search, loc: "remote" }, { ...search, min: 100 }, ...shown.map((stage) => ({ ...search, stage }))];
+        for (const next of nexts) {
+          if (stopped) return;
+          await prefetch(feedParams(next, stages, defaults)).catch(() => undefined);
+        }
+      })();
+    }, 600);
+    return () => { stopped = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per list asked for
+  }, [ahead, ready, plain, shown.join(), defaults]);
   const toggle = (key: "loc" | "min" | "stage", value: string | number) => {
     const next: FeedSearch = { ...search };
     if (next[key] === value) delete next[key];

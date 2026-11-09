@@ -1,5 +1,6 @@
 import { ApiError, type ApiClient, type JobsListParams } from "@pinkslip/core/api";
-import { infiniteQueryOptions, keepPreviousData, queryOptions, useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { infiniteQueryOptions, keepPreviousData, queryOptions, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { queryKeys } from "./keys";
 import { useApi } from "./provider";
 
@@ -55,6 +56,13 @@ export const feedQueryOptions = (api: ApiClient, params: JobsListParams) =>
  * instead of emptying the list. */
 export function useFeed(params: JobsListParams, enabled = true, { keepPrevious = false } = {}) {
   return useInfiniteQuery({ ...feedQueryOptions(useApi(), params), enabled, placeholderData: keepPrevious ? keepPreviousData : undefined });
+}
+
+/** Loads a list's first page ahead of being asked for it. */
+export function usePrefetchFeed() {
+  const api = useApi();
+  const client = useQueryClient();
+  return useCallback((params: JobsListParams) => client.prefetchInfiniteQuery({ ...feedQueryOptions(api, params), pages: 1 }), [api, client]);
 }
 
 /** Catalog health: when the poller last finished. */
