@@ -212,3 +212,24 @@ hide those. Two ways to drop it: repaint the late parts with the page (no
 build needed, 76 files read colors from `useUnistyles`), or a native snapshot
 (a TestFlight build).
 
+**Light and dark, no fade (Nov 9, the owner's pick).** The curtain is off by
+default now (Kit → Motion fixes → "Light and dark" turns it back on). Recorded
+in a production bundle, with a marker at the moment the change is asked for:
+the page changes 30 to 70ms later, in one frame, on You, Jobs and a job page.
+
+What made that possible:
+
+- Navigators read a deferred theme and are memoized, so a change doesn't
+  re-render the whole app first (`useNavigatorTheme`).
+- The status bar is set directly rather than waiting for its component.
+- `IconTile`'s color is in the sheet. `Text` reads sizes from the tokens, since
+  they're the same in every theme and every text re-rendered on a change.
+- Every tab screen has a page color from the sheet. Lists don't have one of
+  their own: FlashList's style isn't updated natively, so its color lagged and
+  covered the page.
+- `TopEdgeFade` is 24 layers of the sheet's color rather than a drawn gradient.
+
+Still moving after the flip: iOS's glass on the tab bar and page buttons, about
+0.4s, which telling it the scheme made slower (0.7s), and the ticket's punched
+holes, about 0.3s.
+
