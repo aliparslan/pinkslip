@@ -46,6 +46,7 @@ final class AlertActions: NotificationDelegate {
         identifier: action.rawValue,
         title: title,
         options: [.authenticationRequired],
+        // intentional: the app's own images came up blank on a real phone (c88ceed).
         icon: UNNotificationActionIcon(systemImageName: symbol)
       )
     }

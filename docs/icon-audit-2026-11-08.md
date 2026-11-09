@@ -13,7 +13,7 @@ enforced it, so it drifted.
 
 | Where | Was | Now | Reaches phones by |
 | --- | --- | --- | --- |
-| Alert buttons (Save, Queue, Hide) | Apple's icons | Pinkslip's | New build |
+| Alert buttons (Save, Queue, Hide) | Apple's icons | Pinkslip's, then Apple's again in 1.3.12 (see Left alone) | New build |
 | You → Swipe actions, the pickers | Apple's icons, including the paperplane for Queue | Pinkslip's, bot for Queue | Update |
 | Old screens: alerts, onboarding | `BellRinging` | `Bell` | Update |
 | Admin's locked page | `LockSimple` | `Lock` | Update |
@@ -61,6 +61,10 @@ tab).
 
 ## Left alone on purpose
 
+- Alert buttons, since 1.3.12: Pinkslip's images showed in the simulator but
+  came up blank on a real phone, so Save, Queue and Hide use Apple's symbols,
+  which iOS draws itself. The line is marked `intentional` in
+  `AlertActions.swift`.
 - Kit pages, which compare icon sets side by side.
 - `GlyphMenu`'s fallback for builds older than 1.3.9, which don't have the
   newest image. It's marked in the code.
