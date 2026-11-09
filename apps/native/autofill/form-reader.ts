@@ -173,6 +173,8 @@ export function readForm(workdayPage = false): FormControl[] {
   // Workday's own controls. Elsewhere a listbox button is often a phone's
   // country picker, so these are read only here.
   const workday = workdayPage && /\.myworkdayjobs\.com$/.test(location.hostname);
+  // Signing in is the person's own, so nothing there is a question.
+  if (workday && document.querySelector("[data-automation-id='signInContent'], [data-automation-id='signInSubmitButton'], [data-automation-id='createAccountSubmitButton']")) return [];
 
   /** Workday speaks a dropdown's question, its answer and "Required" as one
    * aria-label, and only some have a label of their own. */
@@ -214,7 +216,9 @@ export function readForm(workdayPage = false): FormControl[] {
   for (const element of scope.querySelectorAll("input, select, textarea, button[aria-haspopup='listbox']")) {
     if (handled.has(element)) continue;
     if (element instanceof HTMLButtonElement) {
-      if (!workday || !visible(element)) continue;
+      // A question's id reads section--field. The header's language picker
+      // is built the same way, and answering it would change the page.
+      if (!workday || !element.id.includes("--") || !visible(element)) continue;
       const shown = clean(element.textContent);
       const label = dropdownLabel(element, shown);
       if (!label.text) continue;

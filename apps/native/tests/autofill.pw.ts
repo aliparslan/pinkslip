@@ -206,6 +206,7 @@ const WORKDAY_SIGN_IN = `<!doctype html><html><body><form>
  * the Terms box. */
 const WORKDAY_PAGE = `<!doctype html><html><body>
 <div data-automation-id="progressBarActiveStep">current step 3 of 5Application Questions</div>
+<button id="languageSelectorButton" aria-haspopup="listbox" data-options="English|Deutsch"></button>
 <div><label for="country--country">Country*</label><button id="country--country" aria-haspopup="listbox" aria-label="Country United States of America Required" data-options="United States of America|Canada">United States of America</button></div>
 <div><label for="address--countryRegion">State</label><button id="address--countryRegion" aria-haspopup="listbox" aria-label="State Select One" data-options="Alabama|Virginia">Select One</button></div>
 <div><div class="ask">Are you legally authorized to work here?*</div><button id="primaryQuestionnaire--a" aria-haspopup="listbox" aria-label="Are you legally authorized to work here? Select One Required" data-options="Yes|No">Select One</button></div>
@@ -287,6 +288,21 @@ test("leaves Workday's Terms box, menus and date boxes to the person", async ({ 
   expect(new Set(Object.values(outcomes))).toEqual(new Set(["no_match"]));
   expect(await page.locator("#termsAndConditions--acceptTermsAndAgreements").isChecked()).toBe(false);
   expect(await page.locator("#skills--skills").inputValue()).toBe("");
+});
+
+test("reads nothing on Workday's sign-in, and never ticks its sign-up box", async ({ page }) => {
+  const signUp = `<!doctype html><html><body>
+    <div data-automation-id="progressBarActiveStep">current step 1 of 6</div>
+    <label for="email">Email Address*</label><input id="email" data-automation-id="email">
+    <input type="checkbox" id="agree" data-automation-id="createAccountCheckbox"><label for="agree">I agree</label>
+    <button data-automation-id="createAccountSubmitButton">Create Account</button></body></html>`;
+  await page.route("https://acme.wd1.myworkdayjobs.com/**", (route) => route.fulfill({ contentType: "text/html", body: signUp }));
+  await page.goto("https://acme.wd1.myworkdayjobs.com/site/job/x/y/apply/applyManually");
+  expect((await readWorkday(page)).controls).toEqual([]);
+  const { controls } = await read(page);
+  const box = controls.find((control) => control.kind === "checkbox")!;
+  expect((await fill(page, { steps: [{ ref: box.ref, kind: "checkbox", value: "checked" }], resume: null })).outcomes[box.ref]).toBe("no_match");
+  expect(await page.locator("#agree").isChecked()).toBe(false);
 });
 
 test("doesn't read a listbox button as a question away from Workday", async ({ page }) => {

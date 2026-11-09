@@ -1,7 +1,7 @@
 import type { ApiClient } from "@pinkslip/core/api";
 import type { ApplyPlan, FillStep, FormControl } from "@pinkslip/domain/application-form";
 import { FILL_FORM_FUNCTION, READ_DROPDOWNS_BODY, READ_FORM_BODY, READ_WORKDAY_FORM_BODY, SUBMIT_FORM_BODY } from "./scripts.generated";
-import { isWorkdayUrl } from "./workday";
+import { isSignInProvider, isWorkdayUrl } from "./workday";
 
 /** The in-app browser as the loop sees it (ApplicationBrowser.tsx). */
 export interface ApplicationBrowserSession {
@@ -87,6 +87,8 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
     let page = "";
     /** The page of a multi-page application that's showing (Workday's). */
     let step: string | null = null;
+    /** On Google's or LinkedIn's own sign-in page, which is never filled. */
+    let signingIn = false;
     // Save and Continue, the Terms box and Submit stay the person's on Workday.
     const autoSubmit = options.autoSubmit && !isWorkdayUrl(options.url);
     const moreToCome = () => { const at = step?.match(/(\d+) of (\d+)/); return at ? Number(at[1]) < Number(at[2]) : false; };
@@ -148,7 +150,7 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
     };
     const watch = async () => {
       if (closed) return;
-      if (!running && !submitted && loaded) {
+      if (!running && !submitted && loaded && !signingIn) {
         const expected = revision;
         try {
           const { submitted: done, controls, step: showing } = await read();
@@ -175,6 +177,7 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
     };
     const pass = async () => {
       if (closed || !loaded || submitted) return;
+      if (signingIn) { await browser.setStatus("Sign in to start filling").catch(() => undefined); return; }
       if (running) { again = true; return; }
       running = true;
       const expected = revision;
@@ -188,7 +191,7 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
         if (first.submitted) { tell({ stage: "submitted", by: "user" }); await applied(expected); return; }
         step = first.step ?? step;
         let controls = first.controls;
-        if (controls.length === 0) { tell({ stage: "empty" }); await browser.setStatus("Open the application form to fill it"); return; }
+        if (controls.length === 0) { tell({ stage: "empty" }); await browser.setStatus(readsWorkday ? "Sign in to start filling" : "Open the application form to fill it"); return; }
         formShown = true;
         await learnFrom(controls);
         if (!isCurrent(expected)) return;
@@ -253,6 +256,7 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
       onLoaded: (url) => {
         if (closed) return;
         loaded = true; revision += 1; page = where(url); watched = new Map(); learned.clear(); byPinkslip = new Set(); formShown = false;
+        signingIn = isSignInProvider(url);
         void pass();
       },
       // Fill again (owner, 2026-11-04: it did nothing). The form is on

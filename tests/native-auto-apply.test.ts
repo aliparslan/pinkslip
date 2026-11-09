@@ -61,7 +61,7 @@ function harness(options: { autoSubmit?: boolean; delayed?: boolean; planning?: 
     onSubmitted: () => { submittedCalls += 1; } }, async () => null);
   return {
     result, statuses, learned, progress,
-    load: () => events.onLoaded("https://jobs.test/1"),
+    load: (url = "https://jobs.test/1") => events.onLoaded(url),
     navigating: () => events.onNavigating(),
     refill: () => events.onRefill(),
     close: () => events.onFinished(),
@@ -99,6 +99,20 @@ describe("native application session", () => {
       await until(() => flow.fills === 2);
       expect(flow.plans).toBe(2);
       await until(() => flow.statuses.includes("Ready to submit"));
+    } finally { flow.close(); }
+    await flow.result;
+  });
+
+  test("leaves a sign-in provider's page alone", async () => {
+    const flow = harness({ url: WORKDAY, workdayPages: true });
+    try {
+      flow.load("https://accounts.google.com/v3/signin/identifier");
+      await until(() => flow.statuses.includes("Sign in to start filling"));
+      await new Promise((resolve) => setTimeout(resolve, 2_300));
+      expect(flow.reads).toBe(0);
+      expect(flow.plans).toBe(0);
+      flow.load(WORKDAY);
+      await until(() => flow.plans === 1);
     } finally { flow.close(); }
     await flow.result;
   });
@@ -273,6 +287,10 @@ describe("where assisted apply starts", () => {
     expect(assistedStartUrl(`${posting}/apply`)).toBe(`${posting}/apply`);
     expect(assistedStartUrl(`${posting}/apply/autofillWithResume`)).toBe(`${posting}/apply/autofillWithResume`);
     expect(assistedStartUrl("https://boards.greenhouse.io/acme/jobs/1")).toBe("https://boards.greenhouse.io/acme/jobs/1");
+  });
+  test("isn't fooled by a careers site named apply", () => {
+    const ebay = "https://ebay.wd5.myworkdayjobs.com/apply/job/Austin/Engineer_R1";
+    expect(assistedStartUrl(ebay)).toBe(`${ebay}/apply/applyManually`);
   });
   test("isn't fooled by a title that starts with Apply", () => {
     const title = "https://kla.wd1.myworkdayjobs.com/Search/job/Milpitas-CA/Applications-Engineer_1";

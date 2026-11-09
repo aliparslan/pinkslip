@@ -177,10 +177,12 @@ export async function fillForm(request: FillRequest): Promise<FillReport> {
     return "no_match";
   };
 
-  /** On Workday, the Terms box is the person's to tick. Its menus take a real
-   * tap and draw only some of their rows, and its date boxes aren't plain text. */
+  /** On Workday, agreeing to terms is the person's own, at sign-up and on
+   * page 4. Its menus take a real tap and draw only some of their rows, and
+   * its date boxes aren't plain text. */
   const leftToThePerson = (element: Element) =>
     /termsAndConditions/i.test(element.id)
+    || element.getAttribute("data-automation-id") === "createAccountCheckbox"
     || element.getAttribute("data-uxi-widget-type") === "selectinput"
     || (element.getAttribute("data-automation-id") ?? "").startsWith("dateSection");
 
