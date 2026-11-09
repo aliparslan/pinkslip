@@ -198,3 +198,17 @@ Recorded frame by frame in the simulator.
   A tap on one of those took about 340ms from touch to settled, in a production
   bundle. Combinations of chips aren't fetched ahead.
 
+**A chip slides the rows (off by default).** Kit → Motion fixes → "A chip slides
+the rows". Rows both lists share slide to their new places on `motion.list`,
+and rows that leave fade under them, as Tracker and new postings do. About
+380ms on Remote, recorded in a production bundle. A chip whose top rows are the
+same in both lists has nothing to move on screen.
+
+**What a theme change does with no curtain.** Recorded in a production bundle:
+the page and its text flip in one frame. The status bar, the top edge and page
+buttons follow when React has redrawn, up to about half a second later. The
+glass tab bar settles on its own over about 0.3s. The curtain exists only to
+hide those. Two ways to drop it: repaint the late parts with the page (no
+build needed, 76 files read colors from `useUnistyles`), or a native snapshot
+(a TestFlight build).
+
