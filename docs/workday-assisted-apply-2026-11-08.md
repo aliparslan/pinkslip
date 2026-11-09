@@ -20,7 +20,7 @@ only, so other companies' questions will differ.
 
 ## What's on the pages
 
-| Kind | Where | How it's built | Form reader today |
+| Kind | Where | How it's built | Form reader before the build |
 | --- | --- | --- | --- |
 | Text | Name, phone, address, LinkedIn | `input` with `label[for]` | Reads it |
 | Radios | Worked here before? | Native, shared `name` | Should read it, not run |
@@ -35,18 +35,29 @@ On NVIDIA's page 2 nothing is required. Application Questions' dropdowns have
 no `label[for]`, so their question text has to come from nearby. Options differ
 by company: NVIDIA's How Did You Hear has Website then NVIDIA.COM.
 
-## What works, and what isn't known
+## What works, and what doesn't
 
-- **Dropdowns work by script.** `.click()` on the button opens the list, and
-  `.click()` on an `li[role=option]` picks it and closes it. Tested once on
-  NVIDIA's gender question, picking Decline to State, not saved.
+Tested on NVIDIA's real page 1, signed in, without saving.
+
+- **Dropdowns work by script.** `.click()` on the button opens the list in
+  about 50ms, with every option drawn (State has 61, counting Select One).
+  `aria-controls` appears only while it's open. `.click()` on an option picks
+  it. A dispatched Escape on `document.activeElement`, which is the list,
+  closes it and changes nothing. Plain `[role=listbox]` also matches
+  `selectedItemList`, so go through `aria-controls`.
 - A script's `.click()` also presses Add, Save and Continue, and opens the
   menus.
-- **Menus are the open risk.** `.click()` did nothing on a How Did You Hear
-  category, which needed a real click. Dispatched pointer events haven't been
-  tried. If they fail, menus stay the person's to answer.
-- Reader output on the real signed-in page wasn't run. The table is from the
-  page's markup and the reader's code.
+- **Menus answer to pointer events, but aren't worth scripting.** Events on
+  the outer `menuItem` do nothing. On its inner `promptLeafNode` they open a
+  category (row type 2, with a side charm) and pick a final row (type 1).
+  However, a menu sometimes draws only 2 of its 6 rows for over a second, text
+  typed by script is discarded, and Escape doesn't close it. There's one per
+  application, it's two taps, and its answers differ by company. So menus stay
+  the person's: read with their label and saved answer, never typed into.
+- **The reader, run on that page,** returned all 13 questions with clean
+  labels and the right values. Opening dropdowns touched only the one
+  unanswered list and left nothing open. Pages 2 to 5 are checked against
+  fixtures built from their markup, not by running it there.
 
 ## Fixed first
 
@@ -57,13 +68,29 @@ for one tester, and have been deleted. The reader now skips password boxes and
 the robots field, and the server refuses secret labels when planning and
 learning.
 
-## Proposed order
+## Built, off by default
 
-1. Fill again when the step changes. The loop's `watch` only starts a pass
-   until a form has been shown (`!formShown`), so later pages get nothing.
-2. Read dropdowns as questions, opening each once for its options, and fill
-   them by script.
-3. Try dispatched pointer events on the menus, or leave them to the person.
-4. Give dates a real label from their section.
-5. Open assisted apply at `<posting>/apply/applyManually`, so the person lands
-   on sign-in. Passwords and the Terms box stay theirs.
+Kit, Applying, "Fill Workday page by page". Only people with assisted apply
+could reach it, and it stays off until a real application has been through it
+on a phone. With it on:
+
+1. A Workday posting opens at `<posting>/apply/applyManually`, so the person
+   lands on sign-in.
+2. Each page fills as it appears. `progressBarActiveStep` is the only sign the
+   page changed.
+3. Each unanswered dropdown is opened once for its options, then filled by
+   script.
+4. Dates read as "Work experience: start date month". They aren't filled or
+   kept as answers.
+
+Always on, switch or not: the Terms box is never ticked, and Workday is never
+submitted for the person. Save and Continue is theirs too.
+
+## Not proven yet
+
+- Any of it in the phone's web view on a real Workday page.
+- A real page change, since Save and Continue wasn't pressed for this test.
+- Question labels on Application Questions, which assume the same `aria-label`
+  as page 1's dropdowns, with a fallback to nearby text.
+- Whether Workday's confirmation page registers as applied.
+- Whether Google sign-in works in the app's web view. Email sign-in should.
