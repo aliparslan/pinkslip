@@ -665,7 +665,7 @@ export interface JobsListParams {
   /** @deprecated Older clients may continue sending numeric experience bounds. */
   max_yoe?: string;
   posted?: string;
-  /** "all" with `q`: every open job, not only those matching your search. */
+  /** "all" with `q` or `company_id`: every open job, not only those matching your search. */
   scope?: "all";
   /** "pay": highest pay first. Newest first when it's left out. */
   sort?: "pay";
@@ -936,8 +936,12 @@ function createEndpoints(context: ClientContext) {
         method: "POST",
         body: JSON.stringify({ state, handoff }),
       }),
-    logout: () =>
-      request<MeResponse>("/auth/logout", { method: "POST" }),
+    /** `installationId` is this phone's, so its alerts stop with the session. */
+    logout: (installationId?: string) =>
+      request<MeResponse>("/auth/logout", {
+        method: "POST",
+        ...(installationId ? { body: JSON.stringify({ installation_id: installationId }) } : {}),
+      }),
     deleteAccount: () =>
       request<AccountDeletionResponse>("/auth/account", { method: "DELETE" }),
   },

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { Database } from "bun:sqlite";
-import { mergePushSubscriptions } from "@worker/account";
+import { forgetPushInstallation, mergePushSubscriptions } from "@worker/account";
 
 type Binding = string | number | null;
 interface BoundStatement {
@@ -62,6 +62,19 @@ async function subscriptionDb() {
 
   return { db, sqlite, add, registrations };
 }
+
+describe("signing out of one phone", () => {
+  it("stops that phone's alerts and leaves the account's other phones", async () => {
+    const { db, add, registrations } = await subscriptionDb();
+    add("this-phone", "account", "phone", "2026-09-27T23:46:22.000Z");
+    add("other-phone", "account", "tablet", "2026-09-27T23:46:22.000Z");
+    add("someone-else", "other", "phone-2", "2026-09-27T23:46:22.000Z");
+
+    await forgetPushInstallation(db, "account", "phone");
+
+    expect(registrations().map((row) => (row as { id: string }).id)).toEqual(["other-phone", "someone-else"]);
+  });
+});
 
 describe("push subscriptions during account merge", () => {
   it("keeps the newer guest token when the account already has the same installation", async () => {

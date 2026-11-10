@@ -54,7 +54,7 @@ export function useSignOut() {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => api.auth.logout(),
+    mutationFn: (installationId: string | void) => api.auth.logout(installationId ?? undefined),
     onSuccess: async (me) => {
       queryClient.setQueryData(queryKeys.session(), sessionFrom(me));
       await clearPersonalQueries(queryClient);

@@ -3,6 +3,7 @@ import {
   deleteUserAccountData,
   mergeGuestDataIntoAccount,
   normalizeEmail,
+  forgetPushInstallation,
 } from "../account";
 import { verifyAppleIdentityToken } from "../apple";
 import { APPLE_WEB_CALLBACK, appleFlowCookie, appleWebConfig, readAppleWebFlow, startAppleWebFlow } from "../apple-web";
@@ -862,6 +863,11 @@ auth.post("/google/native/finish", async (c) => {
 });
 
 auth.post("/logout", async (c) => {
+  // The phone that signed out stops getting this account's alerts straight away.
+  const body = await c.req.json<{ installation_id?: unknown }>().catch(() => null);
+  if (typeof body?.installation_id === "string" && body.installation_id !== "") {
+    await forgetPushInstallation(c.env.DB, c.get("userId"), body.installation_id);
+  }
   await revokeApiTokensForUser(c.env.DB, c.get("userId"));
   const guestSession = await replaceSession(
     c.env.DB,

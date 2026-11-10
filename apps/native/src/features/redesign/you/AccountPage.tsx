@@ -2,6 +2,7 @@ import { useDeleteAccount, useSession, useSignOut, useUpdateName } from "@pinksl
 import { router } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Alert } from "react-native";
+import { installationId } from "../../../platform/push";
 import { clearResumeFile } from "../../../platform/resume-file";
 import { ListGroup, ListItem, toast } from "../../../ui";
 import { openSignIn } from "../../account/sign-in-request";
@@ -83,7 +84,7 @@ export function AccountPage() {
       await updateName.mutateAsync(name);
     },
     logOut: async () => {
-      await signOut.mutateAsync();
+      await signOut.mutateAsync(installationId());
       clearResumeFile();
       router.replace("/");
     },

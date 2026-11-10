@@ -54,7 +54,7 @@ export function setAppBadge(count: number): void {
 }
 
 /** A stable id for this install, so re-registering replaces its old token. */
-function installationId(): string {
+export function installationId(): string {
   let id = storage.getString("installation-id");
   if (!id) {
     id = Crypto.randomUUID();

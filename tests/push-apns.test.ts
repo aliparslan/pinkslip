@@ -18,11 +18,10 @@ function fakeDb() {
         async run() {
           if (sql.includes("INSERT INTO users")) return { success: true };
           if (sql.includes("DELETE FROM push_subscriptions")) {
-            const [userId, installationId, endpoint] = binds as string[];
+            const [installationId, endpoint] = binds as string[];
             for (const [key, row] of rows) {
               if (
-                row.user_id === userId
-                && row.platform === "ios"
+                row.platform === "ios"
                 && row.installation_id === installationId
                 && row.endpoint !== endpoint
               ) rows.delete(key);
@@ -113,6 +112,24 @@ describe("POST /api/v2/push/apns", () => {
     expect(body.platform).toBe("ios");
     expect(body.user_id).toBe("user-abc");
     expect(body.installation_id).toBe(installationId);
+  });
+
+  it("moves a device token to whoever presents it", async () => {
+    const db = fakeDb();
+    const token = "cd".repeat(32);
+    db.debugRows.set(token, {
+      id: "theirs", user_id: "someone-signed-out", endpoint: token, p256dh: "", auth: "",
+      created_at: "2026-11-01T00:00:00.000Z", platform: "ios", installation_id: null,
+    } as PushSubscriptionRow);
+
+    const res = await appWith().fetch(new Request("http://test/api/v2/push/apns", {
+      method: "POST",
+      headers: { authorization: "Bearer good-token", "content-type": "application/json" },
+      body: JSON.stringify({ token }),
+    }), envWith(db));
+
+    expect(res.status).toBe(201);
+    expect(db.debugRows.get(token)?.user_id).toBe("user-abc");
   });
 
   it("rejects a missing token", async () => {

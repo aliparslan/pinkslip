@@ -207,6 +207,19 @@ async function mergeSingletonProfile(db: D1Database, sourceUserId: string, targe
   }
 }
 
+/** Stops one phone's alerts for this account, leaving the account's other phones. */
+export async function forgetPushInstallation(
+  db: D1Database,
+  userId: string,
+  installationId: string
+): Promise<void> {
+  await db.batch([
+    db.prepare(
+      "DELETE FROM push_subscriptions WHERE user_id = ? AND platform = 'ios' AND installation_id = ?"
+    ).bind(userId, installationId),
+  ]);
+}
+
 export async function mergePushSubscriptions(
   db: D1Database,
   sourceUserId: string,

@@ -101,12 +101,12 @@ push.post("/apns", async (c) => {
   if (installationId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(installationId)) {
     return c.json({ error: "Invalid installation identifier" }, 400);
   }
+
+  // Whoever presents a device's token owns it, so alerts follow the person using
+  // the phone: the upsert below moves the token from whoever had it before.
   const owner = await c.env.DB.prepare(
     "SELECT user_id FROM push_subscriptions WHERE endpoint = ?"
   ).bind(token).first<{ user_id: string | null }>();
-  if (owner?.user_id && owner.user_id !== userId) {
-    return c.json({ error: "This device is already registered to another account" }, 409);
-  }
 
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -125,15 +125,15 @@ push.post("/apns", async (c) => {
     .bind(id, userId, token, now, installationId);
 
   if (installationId) {
-    // APNs can rotate a token for the same installation. Remove the superseded
-    // endpoint before the upsert so delivery continues to fan out to devices,
-    // not to historical tokens for the same device.
+    // APNs can rotate a token for the same installation, and the installation
+    // can change hands. Remove the superseded endpoint before the upsert so
+    // delivery fans out to devices, not to historical tokens for the same device.
     await c.env.DB.batch([
       c.env.DB.prepare(
         `DELETE FROM push_subscriptions
-         WHERE user_id = ? AND platform = 'ios'
+         WHERE platform = 'ios'
            AND installation_id = ? AND endpoint != ?`
-      ).bind(userId, installationId, token),
+      ).bind(installationId, token),
       upsert,
     ]);
   } else {
@@ -148,7 +148,7 @@ push.post("/apns", async (c) => {
     .bind(token)
     .first<PushSubscriptionRow>();
 
-  if (!owner) {
+  if (owner?.user_id !== userId) {
     await recordProductEvent(c.env.DB, {
       userId,
       sessionId: c.get("sessionId"),
