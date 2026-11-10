@@ -1,6 +1,7 @@
 import { ApiError, type ApiClient, type JobsListParams } from "@pinkslip/core/api";
 import { infiniteQueryOptions, keepPreviousData, queryOptions, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { rowsHeld, withoutRepeats } from "./feed-pages";
 import { queryKeys } from "./keys";
 import { useApi } from "./provider";
 
@@ -46,7 +47,10 @@ export const feedQueryOptions = (api: ApiClient, params: JobsListParams) =>
     queryFn: ({ pageParam }) =>
       api.jobs.list({ ...params, limit: String(FEED_PAGE_SIZE), offset: String(pageParam) }),
     initialPageParam: 0,
-    getNextPageParam: (last) => (last.meta.has_more ? (last.meta.next_offset ?? undefined) : undefined),
+    // A job you hide or apply to leaves your rows and the server's list together,
+    // so the next page starts after the rows you still have, not where the last
+    // page ended, which would skip one job for each you removed.
+    getNextPageParam: (last, pages) => (last.meta.has_more ? rowsHeld(pages) : undefined),
     // Coming back from a job keeps the exact list; focus refreshes it later.
     staleTime: 5 * 60_000,
   });
@@ -55,7 +59,7 @@ export const feedQueryOptions = (api: ApiClient, params: JobsListParams) =>
  * results on screen until theirs arrive (`isPlaceholderData` meanwhile),
  * instead of emptying the list. */
 export function useFeed(params: JobsListParams, enabled = true, { keepPrevious = false } = {}) {
-  return useInfiniteQuery({ ...feedQueryOptions(useApi(), params), enabled, placeholderData: keepPrevious ? keepPreviousData : undefined });
+  return useInfiniteQuery({ ...feedQueryOptions(useApi(), params), select: withoutRepeats, enabled, placeholderData: keepPrevious ? keepPreviousData : undefined });
 }
 
 /** Loads a list's first page ahead of being asked for it. */
