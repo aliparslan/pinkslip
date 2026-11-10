@@ -505,3 +505,11 @@ with an address, across 22 companies. Coinbase went from none to two.
 Anthropic and OpenAI wait because those companies' guessed addresses are first names
 only, which often reach someone else. Anthropic has nobody listed because of it. 48
 more are plain "recruiter" titles that would each need the Experience page read.
+
+**Ten more companies searched.** Capital One, Oracle, Palantir, Applied Intuition,
+Salesforce, Cloudflare, KLA, CoreWeave, Verkada and Nuro, picked by open jobs with
+defense and the banks under review left out. That cost at most 66 search credits.
+Capital One returned a 500 once and worked on retry; the cause wasn't found. The
+search kept 102 people. 14 were opened by hand, all passed, and People now lists 148
+across 27 companies. 88 from this search are still unchecked, and Applied Intuition,
+Salesforce, Cloudflare and Nuro have nobody listed yet.
