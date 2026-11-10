@@ -485,3 +485,24 @@ resolution versions.
 Braintrust has 8 that are 32 to 955 days old. Both fail the freshness rule. Startups
 leave roles open for months, so that rule costs more on these boards than on big
 employers'. Nothing was changed.
+
+## 12. Recruiters, the Nov 9 round
+
+30 more people were opened by hand on LinkedIn, and 18 passed. People now lists 134
+with an address, across 22 companies. Coinbase went from none to two.
+
+**The 12 left off.**
+
+- Their hiring isn't software (5): construction, rocket programs, factory lines,
+  account managers, and one Amazon University recruiter whose role is warehouse
+  operations.
+- The guessed address is too doubtful (3): a surname that may have changed, and two
+  common names where a first initial plus surname could reach someone else.
+- Couldn't be confirmed (4): a profile that's gone, one with no employer shown, one
+  whose role ended in July, and one whose headline didn't say what they recruit for
+  alongside a common name.
+
+**What's left in the queue.** 16 technical and university recruiters at Stripe,
+Anthropic and OpenAI wait because those companies' guessed addresses are first names
+only, which often reach someone else. Anthropic has nobody listed because of it. 48
+more are plain "recruiter" titles that would each need the Experience page read.
