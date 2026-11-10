@@ -85,18 +85,31 @@ also has `first_published`. Of 3,766 Greenhouse postings that look under 30 days
 In the catalog, 3,759 Greenhouse jobs look fresh and 1,037 really are. This breaks the
 rule that only a source's real posting date goes in `postedAt`.
 
-## Recommendation
+## What the owner decided (2026-11-09)
 
-1. Stop hiding the 4,800, by deciding visibility from the stored date alone. It's the
-   largest gain and adds no new kind of job.
-2. Use `first_published` for Greenhouse, with a backfill. Ship this with (1): alone,
-   it would age out most of Greenhouse.
-3. Raise the first-sight limit from 30 days to 90. That adds about 1,000 jobs on these
-   boards. Past 90, more of the companies have stopped posting and the evidence gets
-   thinner, so wait for outcomes.
+The first recommendation here was to unhide the 4,800 and raise the limit to 90 days.
+The owner's objection: at most companies, applying after 30 days rarely helps, because
+the early applicants fill the role. Startups are the exception. So:
 
-Before any of it reaches people:
+- The 30-day limit stays, and the 90-day idea is dropped.
+- The 4,800 stay hidden for now.
+- Greenhouse moves to its real date.
+- Older jobs from startups may stay up.
 
+At least 4,000 of the 10,945 jobs people can see today are really over 30 days old:
+3,008 kept because the board still lists them, and 999 more that Greenhouse's date
+shows as recent.
+
+## What the change needs
+
+- **The Greenhouse date can't ship alone.** A real date makes a Greenhouse job count
+  as old but still listed, which is what sets the `evergreen` flag and makes it
+  visible. The 2,607 hidden Greenhouse jobs would appear. The rule for older jobs has
+  to change in the same step.
+- **There's no reliable way to tell a startup yet.** `companies` has no size. Size is
+  known for 92 of 849 companies with open jobs, and 199 are on a fund list. A small
+  job count doesn't work: it catches Lyft, Jump Trading and BNY.
+- Sorting older jobs last costs nothing: the feed already orders newest first by date.
 - Keep it switched off on `main`, since other sessions deploy `main`.
 - Older postings must not go out as new-job alerts. The `evergreen` flag is passed to
   the alert check, but that it blocks these needs testing.
