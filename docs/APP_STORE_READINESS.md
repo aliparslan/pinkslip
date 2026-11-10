@@ -105,6 +105,10 @@ candidate, not as one more TestFlight build:
 - [ ] Once every app in use has the Google sign-in update (a production update,
   or this build), set `GOOGLE_HANDOFF_REQUIRED` to `true` in
   `worker/routes/auth.ts` and deploy.
+- [ ] Before the next push: Apple Developer → Identifiers →
+  `dev.alip.pinkslip` → turn on **Time Sensitive Notifications**. The
+  project now carries that entitlement, so an archive needs the App ID to
+  allow it.
 - [ ] Bump to 1.4.0 everywhere `apps/native/README.md` lists, and run
   `bun test tests/native-release.test.ts`. Do this when cutting the
   candidate, not before: until then, updates for testers still go to 1.3.9.
