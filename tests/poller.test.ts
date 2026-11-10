@@ -33,6 +33,10 @@ import type { ATSAdapter } from "@worker/adapters/types";
 import type { CompanyRow } from "@worker/types";
 import { sqliteD1 } from "./sqlite-d1";
 
+/** One reading of the clock for every job built here: two jobs meant to be
+ * equal differed by a millisecond now and then. */
+const POSTED_AT = new Date().toISOString();
+
 function makeJob(externalId: string, overrides: Partial<JobListing> = {}): JobListing {
   return {
     externalId,
@@ -40,7 +44,7 @@ function makeJob(externalId: string, overrides: Partial<JobListing> = {}): JobLi
     url: `https://example.com/jobs/${externalId}`,
     location: "Remote",
     department: "Engineering",
-    postedAt: new Date().toISOString(),
+    postedAt: POSTED_AT,
     description: null,
     salary: null,
     ...overrides,

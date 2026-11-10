@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono";
 import { normalizeResumeProfile } from "../../shared/resume-profile";
 import { parseResumeText } from "../../packages/core/src/pdf-to-profile";
-import { assessResumeImportFields, resumeImportQualityScore } from "../../packages/core/src/resume-import-quality";
+import { assessResumeImportFields, resumeImportQualityScore, resumeImportWarnings } from "../../packages/core/src/resume-import-quality";
 import { US_STATES } from "../../packages/core/src/resume-fields";
 import { recordProductEvent } from "../product-events";
 import { ProtectedPdfError, readPdfText } from "../resume-pdf-text";
@@ -48,8 +48,8 @@ const ERROR_MESSAGES: Record<ResumeImportErrorCode, string> = {
   protected_pdf: "Remove the PDF password, then try again.",
   no_extractable_text: "No readable resume text was found. Try a text-based PDF.",
   conversion_unavailable: "Resume import is temporarily unavailable. Try again.",
-  import_rate_limited: "You’ve imported several resumes recently. Try again in an hour.",
-  unknown: "The resume couldn’t be imported. Try again.",
+  import_rate_limited: "You've imported several resumes recently. Try again in an hour.",
+  unknown: "The resume couldn't be imported. Try again.",
 };
 
 function responseError(
@@ -261,13 +261,7 @@ resumeImport.post("/parse", async (c) => {
     extractor = best.extractor;
     const profile = best.profile;
     const counts = importCounts(profile);
-
-    const warnings = [
-      !profile.contact.name ? "We couldn’t identify a name." : "",
-      !profile.contact.email ? "We couldn’t identify an email address." : "",
-      counts.experience === 0 ? "We couldn’t identify an experience section." : "",
-      counts.education === 0 ? "We couldn’t identify an education section." : "",
-    ].filter(Boolean);
+    const warnings = resumeImportWarnings(profile);
 
     eventStatus = "success";
     eventCode = "success";
@@ -380,12 +374,7 @@ resumeImport.post("/ocr", async (c) => {
       eventCode = "no_extractable_text";
       return responseError(c, eventCode, 422);
     }
-    const warnings = [
-      !profile.contact.name ? "We couldn’t identify a name." : "",
-      !profile.contact.email ? "We couldn’t identify an email address." : "",
-      counts.experience === 0 ? "We couldn’t identify an experience section." : "",
-      counts.education === 0 ? "We couldn’t identify an education section." : "",
-    ].filter(Boolean);
+    const warnings = resumeImportWarnings(profile);
 
     eventStatus = "success";
     eventCode = "success";

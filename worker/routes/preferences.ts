@@ -16,7 +16,8 @@ preferences.get("/", async (c) => {
 });
 
 preferences.put("/", async (c) => {
-  const body = await c.req.json<Record<string, unknown>>();
+  const body = await c.req.json<Record<string, unknown>>().catch(() => null);
+  if (!body) return c.json({ error: "Invalid request", code: "invalid_request" }, 400);
   const state = await saveUserPreferenceState(
     c.env.DB,
     c.get("userId"),

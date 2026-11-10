@@ -121,7 +121,8 @@ companies.post("/verify", requireAdmin, async (c) => {
   const body = await c.req.json<{
     ats_type: unknown;
     ats_slug: string;
-  }>();
+  }>().catch(() => null);
+  if (!body) return c.json({ error: "Invalid request", code: "invalid_request" }, 400);
 
   try {
     assertPollableSourceType(body.ats_type);
@@ -149,7 +150,8 @@ companies.post("/", requireAdmin, async (c) => {
     ats_type: unknown;
     ats_slug: string;
     website?: string;
-  }>();
+  }>().catch(() => null);
+  if (!body) return c.json({ error: "Invalid request", code: "invalid_request" }, 400);
 
   const name = body.name?.trim() ?? "";
   let atsSlug: string;
@@ -223,7 +225,8 @@ companies.patch("/:id", requireAdmin, async (c) => {
     ats_slug?: string;
     ats_type?: unknown;
     website?: string;
-  }>();
+  }>().catch(() => null);
+  if (!body) return c.json({ error: "Invalid request", code: "invalid_request" }, 400);
 
   const current = await c.env.DB.prepare(
     "SELECT * FROM companies WHERE id = ?"

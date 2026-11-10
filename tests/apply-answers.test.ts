@@ -8,7 +8,7 @@ import {
   staleAuthorizationKeys,
   validCommonAnswer,
 } from "../shared/application-answers";
-import { applicantFacts, learnAnswers, planApplication } from "../worker/apply/plan";
+import { applicantFacts, isSecretQuestion, learnAnswers, planApplication } from "../worker/apply/plan";
 import type { JevRunner } from "../worker/jev";
 import applyRoutes from "../worker/routes/apply";
 import type { Env, Variables } from "../worker/types";
@@ -151,6 +151,16 @@ describe("up-front answers when filling a page", () => {
       control("p", "text", "Password", { value: "hunter2" }),
       control("c", "text", "Confirm Password", { value: "hunter2" }),
       control("s", "text", "Social Security Number", { value: "123-45-6789" }),
+      control("b", "text", "Date of Birth", { value: "1999-04-02" }),
+      control("b2", "text", "Birthday (MM/DD/YYYY)", { value: "04/02/1999" }),
+      control("d", "text", "Driver’s License Number", { value: "D1234567" }),
+      control("d2", "text", "Driving licence no.", { value: "QUINN901029A99" }),
+      control("n", "text", "National ID", { value: "AB123456C" }),
+      control("n2", "text", "National Insurance Number", { value: "QQ123456C" }),
+      control("t", "text", "Taxpayer Identification Number", { value: "912-34-5678" }),
+      control("q", "text", "Security question: your first pet", { value: "Biscuit" }),
+      control("m", "text", "Mother's maiden name", { value: "Quinn" }),
+      control("i", "text", "Create a 4-digit PIN", { value: "4821" }),
     ];
     expect(await learnAnswers(env.DB, "user-1", secrets)).toBe(0);
     expect(sqlite.query("SELECT count(*) AS n FROM application_answers").get()).toEqual({ n: 0 });
@@ -160,9 +170,16 @@ describe("up-front answers when filling a page", () => {
 
   it("still asks ordinary questions that sound close", async () => {
     const { env } = await answersDb();
-    const passport = [control("v", "radio", "Do you have a valid passport?", { options: ["Yes", "No"] })];
-    const plan = await planApplication(env, "user-1", { jobId: null, controls: passport }, undefined);
-    expect(plan.needs.map((need) => need.ref)).toEqual(["v"]);
+    const close = [
+      control("v", "radio", "Do you have a valid passport?", { options: ["Yes", "No"] }),
+      control("l", "radio", "Do you have a valid driver's license?", { options: ["Yes", "No"] }),
+      control("o", "radio", "National origin", { options: ["Prefer not to say", "Other"] }),
+      control("a", "radio", "Are you at least 18 years of age?", { options: ["Yes", "No"] }),
+    ];
+    const plan = await planApplication(env, "user-1", { jobId: null, controls: close }, undefined);
+    expect([...plan.needs.map((need) => need.ref), ...plan.steps.map((step) => step.ref)].sort()).toEqual(["a", "l", "o", "v"]);
+    expect(isSecretQuestion("PIN code")).toBe(false);
+    expect(isSecretQuestion("Postal / PIN Code")).toBe(false);
   });
 
   it("fill a shared question directly", async () => {

@@ -61,10 +61,15 @@ import type {
 } from "../types";
 
 const tailor = new Hono<{ Bindings: Env; Variables: Variables }>();
-tailor.use("/*", async (c, next) => {
-  await ensureEligibleJobs(c.env.DB);
-  await next();
-});
+// Tailoring's own paths only. These routes are mounted at /api/v2, so "/*"
+// here ran this check, and its trip to the database, on every API call
+// registered after them: sign-in, /me, applications, the inbox.
+for (const path of ["/tailor/*", "/tailorings/*"]) {
+  tailor.use(path, async (c, next) => {
+    await ensureEligibleJobs(c.env.DB);
+    await next();
+  });
+}
 interface JobForTailor {
   id: string;
   external_id: string;
@@ -666,7 +671,7 @@ tailor.post("/tailorings/:id/generate", async (c) => {
     }).catch(() => undefined);
     if (!result.validation.valid) {
       return c.json({
-        error: "We couldn't verify every generated claim. Review the flagged evidence and try again.",
+        error: "Not every generated claim could be verified. Review the flagged evidence and try again.",
         code: "tailoring_validation_failed",
         tailoring: await normalizeTailoringForUser(c.env.DB, userId, updated),
       }, 422);
@@ -843,7 +848,7 @@ tailor.post("/tailorings/:id/regenerate", async (c) => {
     }).catch(() => undefined);
     if (!result.validation.valid) {
       return c.json({
-        error: "We couldn't verify that rewrite. Your previous bullet is still available in PDF history.",
+        error: "That rewrite couldn't be verified. Your previous bullet is still available in PDF history.",
         code: "tailoring_validation_failed",
         tailoring: await normalizeTailoringForUser(c.env.DB, userId, updated),
       }, 422);

@@ -111,7 +111,8 @@ interactions.post("/reports", async (c) => {
     job_id?: string;
     report_type?: string;
     notes?: string;
-  }>();
+  }>().catch(() => null);
+  if (!body) return c.json({ error: "Invalid request", code: "invalid_request" }, 400);
   const allowedTypes = new Set([
     "broken_source",
     "expired_listing",
@@ -183,7 +184,8 @@ interactions.get("/reports", requireAdmin, async (c) => {
 });
 
 interactions.patch("/reports/:id", requireAdmin, async (c) => {
-  const body = await c.req.json<{ status?: string; admin_response?: string }>();
+  const body = await c.req.json<{ status?: string; admin_response?: string }>().catch(() => null);
+  if (!body) return c.json({ error: "Invalid request", code: "invalid_request" }, 400);
   const status = body.status ?? "resolved";
   if (!["open", "resolved", "dismissed"].includes(status)) {
     return c.json({ error: "Invalid report status" }, 400);
@@ -476,7 +478,8 @@ interactions.post("/events", async (c) => {
     entity_type?: string;
     entity_id?: string;
     properties?: Record<string, unknown>;
-  }>();
+  }>().catch(() => null);
+  if (!body) return c.json({ error: "Invalid request", code: "invalid_request" }, 400);
   const allowedEvents = new Set([
     "onboarding_started",
     "onboarding_completed",

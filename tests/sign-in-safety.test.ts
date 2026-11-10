@@ -106,6 +106,75 @@ describe("signing in never costs anyone an account", () => {
   });
 });
 
+describe("a new password signs out everywhere else", () => {
+  const signedIn = async (s: ReturnType<typeof setup>, token: string) => (await worker.fetch(new Request(`${ORIGIN}/api/v2/me`, {
+    headers: { authorization: `Bearer ${token}`, "x-pinkslip-client": "ios" },
+  }), s.env, s.ctx)).status;
+  /** A second code for the same email, past the one-a-minute limit. */
+  const later = (s: ReturnType<typeof setup>) => s.sqlite.run("UPDATE email_login_tokens SET created_at = ?", [new Date(Date.now() - 2 * 60 * 1000).toISOString()]);
+
+  it("set after signing in with a code", async () => {
+    const s = setup();
+    const phone = await s.account("owner@example.com");
+    later(s);
+    const laptop = await s.account("owner@example.com");
+    expect(laptop.userId).toBe(phone.userId);
+    expect(await signedIn(s, phone.token)).toBe(200);
+
+    expect((await s.as(laptop.token)("/auth/password", { password: "correct horse battery staple" })).status).toBe(200);
+    expect(await signedIn(s, laptop.token)).toBe(200);
+    expect(await signedIn(s, phone.token)).toBe(401);
+  });
+
+  it("set along with the code, as a forgotten password is", async () => {
+    const s = setup();
+    const phone = await s.account("owner@example.com");
+    later(s);
+    const call = s.as(await s.guest());
+    await call("/auth/email/code/start", { email: "owner@example.com" });
+    const reset = await (await call("/auth/email/code/verify", { email: "owner@example.com", code: s.code("owner@example.com"), password: "correct horse battery staple" })).json() as { native_token: string };
+    expect(await signedIn(s, reset.native_token)).toBe(200);
+    expect(await signedIn(s, phone.token)).toBe(401);
+  });
+
+  it("and a code alone leaves the others be", async () => {
+    const s = setup();
+    const phone = await s.account("owner@example.com");
+    later(s);
+    await s.account("owner@example.com");
+    expect(await signedIn(s, phone.token)).toBe(200);
+  });
+});
+
+describe("what a request sends is checked", () => {
+  const patch = (s: ReturnType<typeof setup>, token: string, path: string, body: string, method = "PATCH") => worker.fetch(new Request(`${ORIGIN}/api/v2${path}`, {
+    method, headers: { authorization: `Bearer ${token}`, "content-type": "application/json", "x-pinkslip-client": "ios" }, body,
+  }), s.env, s.ctx);
+
+  it("a name is one short line", async () => {
+    const s = setup();
+    const { token, userId } = await s.account("owner@example.com");
+    const name = () => (s.sqlite.query("SELECT name FROM users WHERE id = ?").get(userId) as { name: string }).name;
+
+    expect((await patch(s, token, "/me", JSON.stringify({ name: "  Avery\n Quinn\u0000 " }))).status).toBe(200);
+    expect(name()).toBe("Avery Quinn");
+    expect((await patch(s, token, "/me", JSON.stringify({ name: "x".repeat(101) }))).status).toBe(400);
+    expect((await patch(s, token, "/me", JSON.stringify({ name: { first: "Avery" } }))).status).toBe(400);
+    expect(name()).toBe("Avery Quinn");
+  });
+
+  it("a body that isn't JSON is refused, not crashed on", async () => {
+    const s = setup();
+    const { token } = await s.account("owner@example.com");
+    for (const [path, method] of [["/me", "PATCH"], ["/preferences", "PUT"], ["/jobs/job_1", "PATCH"], ["/push/opened", "POST"]] as const) {
+      const answer = await patch(s, token, path, "{not json", method);
+      expect([path, answer.status]).toEqual([path, 400]);
+      expect(await answer.json()).toMatchObject({ code: "invalid_request" });
+    }
+    expect(s.sqlite.query("SELECT COUNT(*) AS n FROM errors").get()).toEqual({ n: 0 });
+  });
+});
+
 describe("guesses are counted before they're checked", () => {
   it("wrong codes arriving together stop at the limit", async () => {
     const s = setup();

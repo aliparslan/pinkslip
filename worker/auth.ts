@@ -209,6 +209,14 @@ async function revokeSession(db: D1Database, sessionId: string | null | undefine
   ).bind(new Date().toISOString(), sessionId).run();
 }
 
+/** A new password ends the account's other sessions, so the change signs
+ * out every device but the one that made it. */
+export async function revokeOtherSessions(db: D1Database, userId: string, keepSessionId: string | null) {
+  await db.prepare(
+    "UPDATE auth_sessions SET revoked_at = ? WHERE user_id = ? AND id != ? AND revoked_at IS NULL"
+  ).bind(new Date().toISOString(), userId, keepSessionId ?? "").run();
+}
+
 export async function revokeApiTokensForUser(db: D1Database, userId: string) {
   await db.prepare("DELETE FROM api_tokens WHERE user_id = ?").bind(userId).run();
 }

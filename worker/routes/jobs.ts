@@ -741,7 +741,8 @@ jobs.get("/:id", async (c) => {
 jobs.patch("/:id", async (c) => {
   const userId = c.get("userId");
   const id = await resolveJobId(c.env.DB, c.req.param("id"));
-  const body = await c.req.json<{ dismissed?: boolean; saved?: boolean; applied?: boolean }>();
+  const body = await c.req.json<{ dismissed?: boolean; saved?: boolean; applied?: boolean }>().catch(() => null);
+  if (!body) return c.json({ error: "Invalid request", code: "invalid_request" }, 400);
   await ensureUserJobMatches(c.env.DB, userId, [id]);
 
   if (body.dismissed === undefined && body.saved === undefined && body.applied === undefined) {

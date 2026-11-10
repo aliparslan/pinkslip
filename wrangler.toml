@@ -111,7 +111,7 @@ enabled = true
 head_sampling_rate = 0.05
 
 [vars]
-VAPID_SUBJECT = "mailto:aliparslan@outlook.com"
+VAPID_SUBJECT = "mailto:support@pinkslip.work"
 VAPID_PUBLIC_KEY = "BM8EzXoxkPPxG1IRS7CroVdKoLPNAs8AxDsZ6wlJB2uu2FyZyFAMXjdJvbg5Y0faVBbd28_GAwrrntFb1cBPVQU"
 EMAIL_FROM_NAME = "Pinkslip"
 EMAIL_FROM_ADDRESS = "login@pinkslip.work"

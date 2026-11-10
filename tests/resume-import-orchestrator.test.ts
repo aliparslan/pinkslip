@@ -72,7 +72,7 @@ describe("adaptive resume import orchestration", () => {
 
     expect(result.extractor).toBe("local_pdfjs");
     expect(result.serverAttempted).toBe(true);
-    expect(result.warnings).toContain("We couldn’t identify an experience section.");
+    expect(result.warnings).toContain("No experience section found.");
   });
 
   test("does not wait for a server request while the device is offline", async () => {

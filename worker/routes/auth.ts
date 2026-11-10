@@ -28,6 +28,7 @@ import {
   replaceSession,
   requireAuthenticated,
   revokeApiTokensForUser,
+  revokeOtherSessions,
 } from "../auth";
 import { randomOpaqueToken, sha256Hex } from "../crypto";
 import { sendMagicLinkEmail, sendSignInCodeEmail } from "../email";
@@ -523,7 +524,7 @@ auth.post("/email/start", async (c) => {
     // retry is silently "rate limited" and reports success with no email.
     await c.env.DB.prepare("DELETE FROM email_login_tokens WHERE id = ?").bind(tokenId).run();
     console.error("Sign-in email failed to send:", error instanceof Error ? `${error.name}: ${error.message}` : error);
-    return c.json({ error: "We couldn't send the email. Try again in a minute.", code: "email_unavailable" }, 503);
+    return c.json({ error: "The email didn't send. Try again in a minute.", code: "email_unavailable" }, 503);
   }
 
   return c.json({ ok: true, expires_at: expiresAt });
@@ -658,6 +659,7 @@ auth.post("/email/code/verify", async (c) => {
       `UPDATE auth_identities SET password_hash = ?, password_updated_at = ?
        WHERE user_id = ? AND provider = 'email' AND provider_subject = ?`
     ).bind(passwordHash, now, c.get("userId"), email).run();
+    await revokeOtherSessions(c.env.DB, c.get("userId"), nextSession.id);
   }
   return c.json({
     ...await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState")),
@@ -737,6 +739,8 @@ auth.post("/password", requireAuthenticated, async (c) => {
     `UPDATE auth_identities SET password_hash = ?, password_updated_at = ?
      WHERE user_id = ? AND provider = 'email' AND provider_subject = ?`
   ).bind(await hashPassword(body!.password as string), new Date().toISOString(), c.get("userId"), fresh.email).run();
+  await revokeOtherSessions(c.env.DB, c.get("userId"), c.get("sessionId"));
+  await revokeApiTokensForUser(c.env.DB, c.get("userId"));
   return c.json(await buildAccountState(c.env.DB, c.get("userId"), c.get("sessionState")));
 });
 

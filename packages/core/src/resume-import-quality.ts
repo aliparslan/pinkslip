@@ -140,12 +140,14 @@ export function shouldRequestServerResumeImport(profile: Partial<ResumeProfile>)
   return assessResumeImportQuality(profile).materiallyWeak;
 }
 
+/** What an import didn't find, for the person to add by hand. The phone's
+ * own reading and the server's both say it with these words. */
 export function resumeImportWarnings(profile: Partial<ResumeProfile>): string[] {
   return [
-    !profile.contact?.name ? "We couldn’t identify a name." : "",
-    !profile.contact?.email ? "We couldn’t identify an email address." : "",
-    (profile.experience?.length ?? 0) === 0 ? "We couldn’t identify an experience section." : "",
-    (profile.education?.length ?? 0) === 0 ? "We couldn’t identify an education section." : "",
+    !profile.contact?.name ? "No name found." : "",
+    !profile.contact?.email ? "No email address found." : "",
+    (profile.experience?.length ?? 0) === 0 ? "No experience section found." : "",
+    (profile.education?.length ?? 0) === 0 ? "No education section found." : "",
   ].filter(Boolean);
 }
 

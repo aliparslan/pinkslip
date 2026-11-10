@@ -154,7 +154,7 @@ describe("POST /resume-import/parse", () => {
     };
     expect(body.profile.contact.name).toBe("Jane Doe");
     expect(body.counts.experience).toBe(1);
-    expect(body.warnings).toContain("We couldn’t identify an education section.");
+    expect(body.warnings).toContain("No education section found.");
   });
 
   // A real LaTeX PDF: Workers AI's converter keeps no line breaks for it

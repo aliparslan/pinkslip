@@ -2,7 +2,7 @@
  * React web app. The App Store links to `/privacy` and `/support`, and the
  * app's sign-in sheet to `/terms` and `/privacy`, so the paths are stable.
  * Bodies are static, repository-owned HTML. */
-export const LEGAL_UPDATED_AT = "November 4, 2026";
+export const LEGAL_UPDATED_AT = "November 9, 2026";
 export const TERMS_UPDATED_AT = "October 23, 2026";
 export const SUPPORT_EMAIL = "support@pinkslip.work";
 
@@ -36,7 +36,7 @@ export const privacyPolicy: LegalPage = {
 <p>Pinkslip uses this information to find and rank relevant jobs, sync your choices, send alerts you enable, create resume and tailoring tools you request, authenticate accounts, prevent abuse, provide support, and improve reliability. Pinkslip does not sell personal information or use it for third-party advertising.</p>
 
 <h2>Service providers</h2>
-<p>Pinkslip uses Cloudflare to host the service, store account and resume data, deliver sign-in email, and run Workers AI models that read and tailor resumes, suggest application answers, and sort forwarded job emails when Pinkslip's own rules can't tell what they're about. If you use Sign in with Apple or enable iOS notifications, Apple processes the information needed to provide those features. If you use Google sign-in, Google processes the information needed to sign you in. If you leave a tip, Stripe processes the payment on its own page; Pinkslip doesn't receive your card details. These providers may process information only to provide their services to Pinkslip and under their own legal obligations.</p>
+<p>Pinkslip uses Cloudflare to host the service, store account and resume data, deliver sign-in email, and run Workers AI models that read and tailor resumes, suggest application answers, and sort forwarded job emails when Pinkslip's own rules can't tell what they're about. If you use Sign in with Apple or enable iOS notifications, Apple processes the information needed to provide those features. If you use Google sign-in, Google processes the information needed to sign you in. If you leave a tip, Stripe processes the payment on its own page; Pinkslip doesn't receive your card details. The iOS app asks Expo's update service whether a newer version of its code is ready; to answer, Expo receives the phone's IP address and an identifier for that installation, which isn't tied to your account. These providers may process information only to provide their services to Pinkslip and under their own legal obligations.</p>
 
 <h2>Recruiters</h2>
 <p>To help job seekers reach the right person, Pinkslip keeps a short list of recruiters at the companies it lists:</p>

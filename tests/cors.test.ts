@@ -31,6 +31,23 @@ describe("native API CORS", () => {
   });
 });
 
+describe("pages on localhost", () => {
+  const allowed = async (api: string) => (await worker.fetch(
+    new Request(`${api}/api/v2/bootstrap`, { method: "OPTIONS", headers: { Origin: "http://localhost:5173", "Access-Control-Request-Method": "GET" } }),
+    {} as Env,
+    {} as ExecutionContext,
+  )).headers.get("access-control-allow-origin");
+
+  it("can call the API while it runs locally", async () => {
+    expect(await allowed("http://localhost:8787")).toBe("http://localhost:5173");
+    expect(await allowed("http://127.0.0.1:8787")).toBe("http://localhost:5173");
+  });
+
+  it("can't call the live one", async () => {
+    expect(await allowed("https://pinkslip.work")).toBeNull();
+  });
+});
+
 describe("legacy hostname redirect", () => {
   it("preserves the requested page and query on the new domain with a notice marker", async () => {
     const response = await worker.fetch(

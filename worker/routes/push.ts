@@ -36,7 +36,8 @@ push.get("/settings", async (c) => {
 /** The job-alert switch for builds before per-kind settings
  * (GET/PATCH /notifications); it writes the same rows. */
 push.put("/settings", async (c) => {
-  const body = await c.req.json<{ enabled?: boolean; push_enabled?: boolean }>();
+  const body = await c.req.json<{ enabled?: boolean; push_enabled?: boolean }>().catch(() => null);
+  if (!body) return c.json({ error: "Invalid request", code: "invalid_request" }, 400);
   const userId = c.get("userId");
   const existing = await c.env.DB.prepare(
     "SELECT push_enabled FROM user_notification_settings WHERE user_id = ?"
@@ -51,7 +52,8 @@ push.put("/settings", async (c) => {
 });
 
 push.post("/opened", async (c) => {
-  const body = await c.req.json<{ job_id?: string; job_ids?: string[]; notification_id?: string }>();
+  const body = await c.req.json<{ job_id?: string; job_ids?: string[]; notification_id?: string }>().catch(() => null);
+  if (!body) return c.json({ error: "Invalid request", code: "invalid_request" }, 400);
   const requestedJobIds = [...new Set([
     ...(Array.isArray(body.job_ids) ? body.job_ids : []),
     ...(body.job_id ? [body.job_id] : []),

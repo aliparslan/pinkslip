@@ -1582,6 +1582,10 @@ export async function runPollCycle(
     db.prepare(
       "DELETE FROM access_attempts WHERE datetime(attempted_at) < datetime('now', '-1 day')"
     ).run().catch(() => undefined),
+    // Only the last 15 minutes of tries count; they hold emails and addresses.
+    db.prepare(
+      "DELETE FROM password_attempts WHERE datetime(attempted_at) < datetime('now', '-1 day')"
+    ).run().catch(() => undefined),
     db.prepare(
       "DELETE FROM tailor_usage WHERE datetime(created_at) < datetime('now', '-30 days')"
     ).run().catch(() => undefined),

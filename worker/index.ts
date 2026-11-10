@@ -84,26 +84,28 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // Credentialed CORS must NOT reflect arbitrary origins, or any website could make
 // authenticated requests as the signed-in user and read the responses. Allow only
-// our own web origin, the native Capacitor shells, and localhost during dev.
+// our own web origin, the native Capacitor shells, and localhost during dev:
+// a page on localhost is let in only when the API itself is running there.
 const ALLOWED_ORIGINS = new Set([
   "https://pinkslip.alip.dev",
   "https://pinkslip.work",
   "capacitor://localhost",
   "ionic://localhost",
 ]);
-function isAllowedOrigin(origin: string): boolean {
-  if (ALLOWED_ORIGINS.has(origin)) return true;
+const isLocal = (url: string): boolean => {
   try {
-    const { hostname } = new URL(origin);
-    return hostname === "localhost" || hostname === "127.0.0.1";
+    return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(url).hostname);
   } catch {
     return false;
   }
+};
+function isAllowedOrigin(origin: string, requestUrl: string): boolean {
+  return ALLOWED_ORIGINS.has(origin) || (isLocal(origin) && isLocal(requestUrl));
 }
 app.use(
   "/*",
   cors({
-    origin: (origin) => (origin && isAllowedOrigin(origin) ? origin : null),
+    origin: (origin, c) => (origin && isAllowedOrigin(origin, c.req.url) ? origin : null),
     credentials: true,
     allowHeaders: [
       "Content-Type",
@@ -448,12 +450,19 @@ app.get("/api/v2/bootstrap", async (c) => {
     preferences,
   });
 });
+const NAME_MAX_LENGTH = 100;
 app.patch("/api/v2/me", async (c) => {
   const userId = c.get("userId");
-  const body = await c.req.json<{ name?: string }>();
+  const body = await c.req.json<{ name?: unknown }>().catch(() => null);
+  if (!body) return c.json({ error: "Invalid request", code: "invalid_request" }, 400);
   if (body.name !== undefined) {
+    // One short line: it's printed on applications and signs emails.
+    const name = typeof body.name === "string" ? body.name.replace(/[\s\p{Cc}]+/gu, " ").trim() : null;
+    if (name === null || name.length > NAME_MAX_LENGTH) {
+      return c.json({ error: `Keep your name under ${NAME_MAX_LENGTH} characters`, code: "invalid_name" }, 400);
+    }
     await c.env.DB.prepare("UPDATE users SET name = ? WHERE id = ?")
-      .bind(body.name, userId).run();
+      .bind(name, userId).run();
   }
   const accountState = await buildAccountState(c.env.DB, userId, c.get("sessionState"));
   return c.json(accountState);
@@ -520,7 +529,7 @@ app.onError((error, c) => {
   }
   return c.json(
     {
-      error: "Something went wrong while loading Pinkslip. Please try again.",
+      error: "Something went wrong. Try again.",
       code: "internal_error",
       request_id: requestId,
     },

@@ -275,7 +275,18 @@ function isEmpty(value: FormControl["value"]): boolean {
  */
 /** What Pinkslip never fills in or remembers, whatever the form calls it. An
  * older app can still send a password box as an ordinary question. */
-const SECRET_QUESTION = /\bpass\s?(word|code|phrase)\b|\bssn\b|social security|\b(routing|bank account|credit card|card) number\b|\bcvv\b|passport number/i;
+const SECRET_QUESTION = new RegExp([
+  String.raw`\bpass\s?(word|code|phrase)\b`,
+  String.raw`\bssn\b|social (security|insurance)`,
+  String.raw`\b(routing|bank account|credit card|card) number\b|\bcvv\b`,
+  // A number is a secret; "Do you have a valid passport?" is a question.
+  String.raw`passport (number|no\b|#)|\b(driver['’]?s?|driving) licen[cs]e (number|no\b|#)`,
+  String.raw`\bdate of birth\b|\bbirth ?(date|day)\b|\bdob\b`,
+  String.raw`\bnational (id|identification|identity|insurance)\b|\btax(payer)? (id|identification)\b|\bitin\b`,
+  String.raw`\b(security|secret) (question|answer)\b|mother['’]?s maiden name`,
+  // India's "PIN code" is a postcode.
+  String.raw`\bpin\b(?!\s*code)`,
+].join("|"), "i");
 export const isSecretQuestion = (label: string) => SECRET_QUESTION.test(label);
 
 export async function planApplication(
