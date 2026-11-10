@@ -493,14 +493,13 @@ with an address, across 22 companies. Coinbase went from none to two.
 
 **The 12 left off.**
 
-- Their hiring isn't software (5): construction, rocket programs, factory lines,
+- Their hiring isn't software (6): construction, rocket programs (2), factory lines,
   account managers, and one Amazon University recruiter whose role is warehouse
   operations.
 - The guessed address is too doubtful (3): a surname that may have changed, and two
   common names where a first initial plus surname could reach someone else.
-- Couldn't be confirmed (4): a profile that's gone, one with no employer shown, one
-  whose role ended in July, and one whose headline didn't say what they recruit for
-  alongside a common name.
+- Couldn't be confirmed (3): a profile that's gone, one with no employer shown, and
+  one whose role ended in July.
 
 **What's left in the queue.** 16 technical and university recruiters at Stripe,
 Anthropic and OpenAI wait because those companies' guessed addresses are first names
