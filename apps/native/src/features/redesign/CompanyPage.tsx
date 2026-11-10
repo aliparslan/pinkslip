@@ -160,7 +160,7 @@ function useCompanyJobs(companyId: string, name: string | undefined) {
     return siblings.length > 0 ? siblings : [companyId];
   }, [companies.data, companyId, name]);
   const results = useQueries({
-    queries: ids.map((id) => ({ queryKey: ["company-jobs", id], queryFn: () => api.jobs.list({ company_id: id, limit: "100" }) })),
+    queries: ids.map((id) => ({ queryKey: ["company-jobs", id], queryFn: () => api.jobs.list({ company_id: id, scope: "all", limit: "100" }) })),
   });
   const jobs = useMemo(() => results.flatMap((result) => result.data?.jobs ?? [])
     .sort((a, b) => (b.posted_at ?? b.first_seen_at).localeCompare(a.posted_at ?? a.first_seen_at)), [results]);

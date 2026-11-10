@@ -70,6 +70,10 @@ END`;
  * every open job, matched or not (owner, 2026-11-08: it promised "every open
  * job and company").
  */
+/** Search and a company's page list every open job; everything else, only your matches. */
+export const listsEveryJob = (scope: string | undefined, q: string | undefined, companyId: string | undefined) =>
+  scope === "all" && ((q !== undefined && q.trim() !== "") || companyId !== undefined);
+
 export const matchJoin = (everyJob: boolean) =>
   `${everyJob ? "LEFT JOIN" : "JOIN"} user_job_matches us ON us.job_id = j.id AND us.user_id = ?`;
 
@@ -383,7 +387,7 @@ jobs.get("/", async (c) => {
     sort,
     count_cap,
   } = c.req.query();
-  const everyJob = scope === "all" && q !== undefined && q.trim() !== "";
+  const everyJob = listsEveryJob(scope, q, company_id);
   const roleFilter = parseRoleFilter(roles);
   if (roleFilter === null) {
     return c.json({ error: "Invalid roles filter" }, 400);

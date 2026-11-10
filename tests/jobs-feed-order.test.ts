@@ -5,6 +5,7 @@ import {
   JOB_FEED_ORDER_BY,
   JOB_FEED_ORDER_BY_PAY,
   JOB_MATCH_FACT_CASE,
+  listsEveryJob,
   matchJoin,
   parseStageFilter,
 } from "@worker/routes/jobs";
@@ -78,6 +79,13 @@ describe("how the list reaches your matches", () => {
 
   it("lets Search see every open job", () => {
     expect(ids(true)).toEqual(["matched", "outside-my-search"]);
+  });
+
+  it("opens every job for a search or a company's page, and nothing else", () => {
+    expect(listsEveryJob("all", "stripe", undefined)).toBe(true);
+    expect(listsEveryJob("all", undefined, "company-1")).toBe(true);
+    expect(listsEveryJob(undefined, undefined, "company-1")).toBe(false);
+    expect(listsEveryJob("all", "  ", undefined)).toBe(false);
   });
 });
 
