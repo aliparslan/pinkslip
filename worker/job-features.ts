@@ -17,6 +17,7 @@ import {
   parseStoredQualifications,
   type QualificationRequirements,
 } from "./qualification-requirements";
+import { legacySponsorshipStatement, sponsorshipStatement, WIDER_SPONSORSHIP_PATTERNS } from "./sponsorship";
 
 // Bump whenever classification, hard-requirement, or review semantics change.
 // Stored rows are versioned so the poller can drain a bounded, self-healing
@@ -964,15 +965,9 @@ export function classifyJob(listing: JobListing): JobFeatures {
     .filter((metro) => metro.aliases.some((alias) => location.includes(alias)))
     .map((metro) => metro.id);
   const salary = parseSalary(listing.salary);
-  const description = listing.description?.toLowerCase() ?? "";
-  const sponsorshipAvailable = /\b(?:visa|immigration)\s+sponsorship\s+(?:is\s+)?available\b/.test(description)
-    || /\bwe (?:do|can) sponsor\b/.test(description)
-    ? true
-    : /\b(?:unable|not able) to sponsor\b/.test(description)
-      || /\b(?:do not|don't|cannot|can't|will not|won't) sponsor\b/.test(description)
-      || /\bno (?:visa|immigration) sponsorship\b/.test(description)
-      ? false
-      : null;
+  const sponsorshipAvailable = WIDER_SPONSORSHIP_PATTERNS
+    ? sponsorshipStatement(listing.description)
+    : legacySponsorshipStatement(listing.description);
   const titleConfidence = specialties.length > 0 ? 0.9 : departmentMatches.length > 0 ? 0.62 : 0.35;
   const confidence = Math.min(0.98, titleConfidence + (years.min !== null ? 0.04 : 0) + (workMode !== "unknown" ? 0.03 : 0));
 
