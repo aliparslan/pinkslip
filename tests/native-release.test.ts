@@ -46,3 +46,17 @@ describe("committed iOS release configuration", () => {
     expect(expo).toMatch(new RegExp(`<key>EXUpdatesRuntimeVersion</key>\\s*<string>${config.version.replaceAll(".", "\\.")}</string>`));
   });
 });
+
+describe("what only a build can carry", () => {
+  const ios = (name: string) => readFileSync(new URL(`../apps/native/ios/Pinkslip/${name}`, import.meta.url), "utf8");
+
+  it("declares the time-sensitive alerts the server sends", () => {
+    expect(ios("Pinkslip.entitlements")).toContain("com.apple.developer.usernotifications.time-sensitive");
+  });
+
+  it("states in the privacy manifest what App Privacy lists, none of it tracked", () => {
+    const manifest = ios("PrivacyInfo.xcprivacy");
+    expect(manifest.match(/<key>NSPrivacyCollectedDataType<\/key>/g)).toHaveLength(14);
+    expect(manifest).not.toContain("<key>NSPrivacyCollectedDataTypeTracking</key>\n\t\t\t<true/>");
+  });
+});
