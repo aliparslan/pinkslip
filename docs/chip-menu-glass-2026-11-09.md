@@ -72,10 +72,18 @@ Everything on that row was React Native imitating what iOS does. Now:
 - **The row is native.** `FilterChips` is one SwiftUI row, so the width, the
   push, the fill and the words move in one transaction, and the glass closes
   into a label that really is its own.
-- **A chip that says something new is a new chip.** iOS clips a menu's label to
-  its old size for about a second after the menu closes, whoever draws the
-  label. That was the square block, and it's why resizing never worked. The
-  same applies to the sort on the section header, which twitched sideways.
+- **Colors and words flip at once; only the width moves.** Fading them overlaps
+  two words and passes through a gray where neither reads. SwiftUI animates
+  everything in a change, so the colors go first, unanimated, and the words and
+  widths follow on the spring two frames later.
+- **A pick waits for the glass, then makes a new chip.** iOS reports the pick
+  while its glass is still closing, so the chip holds for 320ms and the glass
+  lands on the chip it left. iOS also clips a menu's label to its old size for
+  about a second after the menu closes, whoever draws the label. That was the
+  square block. A new chip avoids it; the sort on the section header, which
+  twitched sideways, gets the same.
+- **Only a pick makes a new chip.** Replacing every chip on Clear overlapped six
+  pills at different positions, which the owner saw as jitter.
 - **A list only dims for a wait you'd notice.** New rows that are ready replace
   the old ones. Dimming starts after 250ms.
 
@@ -84,13 +92,15 @@ switches "A picked chip grows" and "The menu lands on its chip".
 
 | After starting over | Result on the simulator, dark mode |
 | --- | --- |
-| Clear | One beat of about 150ms, no blank pills, words always readable |
-| Pick an option | The glass closes into the chip, which cross-fades to its new look; no square block |
+| Clear, all three filled | Pills flip once, then the row closes up in about 250ms; no blank pills, no overlapping words |
+| Pick an option | The glass lands on the old chip, it flips, then grows; no square block |
 | The list | No dim on a change; section titles no longer twitch |
 
 ## Known limits
 
 - Seen only on Debug simulator builds so far.
+- As a chip grows its caret touches the last letters for about 150ms. Clipping
+  the word to the pill made every chip the same width and truncated "Location".
 - A short Location list (a menu that stays open for multi-select) keeps one chip
   across changes, since replacing it would close the menu. It can show the
   square block for about a second after closing. Long lists use the drawer.

@@ -917,10 +917,11 @@ part isn't there yet, draw it from the kit's values and add it to that page.
   or Highest pay. Sorted by pay, the top of the range takes the age's slot
   and the age moves to line two. A job in the one place picked leaves it out.
   The row is one native SwiftUI row (`FilterChips`), because iOS only morphs a
-  menu properly out of its own label. A change is one transaction on
-  `motion.list.move`: a chip that says something new is replaced by a cross-fade
-  and the ones beside it slide over. It has to be a new chip: iOS clips a
-  resized menu label to its old size for about a second after the menu closes.
+  menu properly out of its own label. One rule for every change: the colors and
+  words flip at once and only the width moves, on `motion.list.move`, pushing
+  the chips beside it. After a pick the chip waits for the menu's glass to land
+  first, and becomes a new chip, because iOS clips a menu's label to its old
+  size for about a second after the menu closes.
 - **Chips** (`Chip.tsx`): 32 tall, Subhead, 16 each side, outlined when
   off; a count is `ink-3` after a 6 gap. `tone="pink"` for chips that save
   to your search (Selection, above).
