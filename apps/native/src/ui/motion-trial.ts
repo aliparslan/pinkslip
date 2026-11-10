@@ -15,7 +15,7 @@ import { storage } from "../platform/storage";
  */
 export type MotionTrial = "undo" | "sheetFade" | "wheel" | "trackerLoad" | "pdfSettle"
   | "zoom" | "stampBar" | "stampOffer" | "trackerMove" | "jobsArrive" | "todayZoom" | "zoomLanding"
-  | "themeFade" | "chipFade" | "chipSlide" | "chipGrow" | "chipLand";
+  | "themeFade" | "chipFade" | "chipSlide";
 
 export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; proposed: string }[] = [
   { id: "undo", title: "Undo brings the job back", today: "It appears in one frame", proposed: "Hide played backwards" },
@@ -34,15 +34,13 @@ export const MOTION_TRIALS: { id: MotionTrial; title: string; today: string; pro
   { id: "zoomLanding", title: "Zoom lands on the title", today: "The page's top lands on the row", proposed: "Its logo and title land on the row's" },
   // The owner asked for these two to be reviewed and workshopped (Nov 8).
   { id: "themeFade", title: "Light and dark", today: "It changes at once", proposed: "A curtain, then the page ramps" },
-  { id: "chipGrow", title: "A picked chip grows", today: "It jumps to its new width", proposed: "It grows and pushes the others" },
-  { id: "chipLand", title: "The menu lands on its chip", today: "The glass closes over the chip", proposed: "The glass turns back into the chip" },
-  { id: "chipFade", title: "A chip changes the list", today: "The rows cut over, late on Jobs", proposed: "Rows dim, the new ones come up" },
+  { id: "chipFade", title: "A chip changes the list", today: "The rows cut over, late on Jobs", proposed: "Rows change at once, and only a slow wait dims them" },
   { id: "chipSlide", title: "A chip slides the rows", today: "Rows dim and come up", proposed: "Rows that stay slide, the rest fade" },
 ];
 
 const key = (id: MotionTrial) => `kit-motion-${id}`;
 /** Still being judged: off until switched on here, unlike the rest. */
-const OFF_UNTIL_ON: ReadonlySet<MotionTrial> = new Set(["chipSlide", "themeFade", "chipLand"]);
+const OFF_UNTIL_ON: ReadonlySet<MotionTrial> = new Set(["chipSlide", "themeFade"]);
 const listeners = new Set<() => void>();
 const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
 

@@ -52,32 +52,47 @@ Developers also report glitches when a custom button closes a glass menu:
 No official Apple fix turned up, so a phone may show something the simulator
 doesn't.
 
-## The fix (Kit: "The menu lands on its chip", off by default)
+## First fix, dropped
 
-At rest the menu holds a real copy of the chip and the drawn chip is hidden, so
-iOS hides the only chip on screen and brings it back out of the glass. While
-the chip is growing or shrinking, the drawn chip shows and the copy waits.
+A real copy of the chip inside the menu, with the drawn chip standing in while
+it moved, fixed the smear but failed the owner's test on the phone: fill all
+three chips in dark mode, then Clear. It stacked a drawn layer, a copy, a timer
+and a replaced host on one tap.
 
-Two things that didn't work, for whoever touches this next:
-
-- Resizing the menu's host. It keeps a stale width and clips the copy to a
-  square block for 450 to 620ms. A new width now gets a new host (`key`).
-- Timing the handover later. The clip is not a delay the host recovers from on
-  its own schedule.
-
-Both layers change in one render rather than through a shared value, so the
-copy can't show a frame of the new look early.
-
-| After the fix | Result on the simulator |
+| On Clear, dark mode | What the frames showed |
 | --- | --- |
-| Close, unselected | The chip is gone while open; "Level" resolves in the glass by about 230ms |
-| Close, selected | The black pill rises out of the glass, full size by about 400ms |
-| Pick an option | Stays a pill; no block, no flash at the handover |
-| Clear | Fill fades, chip shrinks, the others slide over |
+| About 70ms | Three blank white pills: the words flipped to white before the fill left |
+| 100 to 175ms | Pills fading through gray with the words gone |
+| 70ms to over 1s | The whole list dimmed, then came back |
+
+## Starting over
+
+Everything on that row was React Native imitating what iOS does. Now:
+
+- **The row is native.** `FilterChips` is one SwiftUI row, so the width, the
+  push, the fill and the words move in one transaction, and the glass closes
+  into a label that really is its own.
+- **A chip that says something new is a new chip.** iOS clips a menu's label to
+  its old size for about a second after the menu closes, whoever draws the
+  label. That was the square block, and it's why resizing never worked. The
+  same applies to the sort on the section header, which twitched sideways.
+- **A list only dims for a wait you'd notice.** New rows that are ready replace
+  the old ones. Dimming starts after 250ms.
+
+Removed: the drawn chip, the copy, the width measuring, the timers, and the Kit
+switches "A picked chip grows" and "The menu lands on its chip".
+
+| After starting over | Result on the simulator, dark mode |
+| --- | --- |
+| Clear | One beat of about 150ms, no blank pills, words always readable |
+| Pick an option | The glass closes into the chip, which cross-fades to its new look; no square block |
+| The list | No dim on a change; section titles no longer twitch |
 
 ## Known limits
 
-- A short Location list (a menu that stays open for multi-select) keeps the old
-  close. Replacing its host would close the menu mid-pick. Long Location lists
-  use the drawer and have no glass.
-- Opening a chip within 360ms of changing it still closes the old way once.
+- Seen only on Debug simulator builds so far.
+- A short Location list (a menu that stays open for multi-select) keeps one chip
+  across changes, since replacing it would close the menu. It can show the
+  square block for about a second after closing. Long lists use the drawer.
+- The caret is iOS's chevron, not Phosphor's: a Phosphor one can't be drawn in a
+  native label without a new build.

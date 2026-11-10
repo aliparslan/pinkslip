@@ -1,6 +1,6 @@
 import { createContext, forwardRef, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import type { View, ViewProps } from "react-native";
-import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withTiming, type SharedValue } from "react-native-reanimated";
 import { StyleSheet } from "react-native-unistyles";
 import { motion, spring, timing } from "./motion";
 import { useMotionTrial } from "./motion-trial";
@@ -62,17 +62,19 @@ export const ListMotionCell = forwardRef<View, ViewProps & { index: number }>(fu
   </Animated.View>;
 });
 
-const ROWS_DIM = timing({ duration: 90, curve: [0.23, 1, 0.32, 1] });
+const ROWS_DIM = timing({ duration: 180, curve: [0.23, 1, 0.32, 1] });
 const ROWS_IN = timing({ duration: 130, curve: [0.33, 1, 0.68, 1] });
 /** While the server finds the new rows, the old ones say they're on their way out. */
-const ROWS_WAITING = 0.4;
+const ROWS_WAITING = 0.5;
+/** A list that lands sooner than this just changes: dimming it would only blink. */
+const DIM_AFTER = 250;
 
 /**
  * Swaps a list for a different one (a chip, the filters), with the cost of a
  * chip in mind: tens of times a day, so nothing slides and nothing waits on an
- * animation. The rows dim, and the new ones take their place while dim and
- * come up, so the screen is never empty. When the new rows are still on their
- * way (`waiting`), the old ones stay dim until they land.
+ * animation. New rows that are ready simply replace the old ones. Only a wait
+ * you'd notice (`waiting`, past DIM_AFTER) dims the old rows, and the new ones
+ * land while dim and come up, so the screen is never empty.
  *
  * `list` says which list `latest` is: while it stays the same, new rows go
  * straight through, so paging, a new posting or a stage move plays as before.
@@ -103,7 +105,7 @@ export function useRowsSwap<T, L>(latest: T, list: L, waiting = false, slide?: (
         settled.current = newest.current;
         render();
       };
-      if (waiting || !slideNow.current) fade.value = withTiming(ROWS_WAITING, ROWS_DIM);
+      if (waiting) fade.value = withDelay(DIM_AFTER, withTiming(ROWS_WAITING, ROWS_DIM));
       if (!waiting) {
         if (slideNow.current) slideNow.current(settled.current.rows, newest.current.rows, change);
         else frame = requestAnimationFrame(change);

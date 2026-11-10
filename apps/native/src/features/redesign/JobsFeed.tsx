@@ -5,13 +5,13 @@ import { useFeed, usePrefetchFeed, useStats, useViewedJobs } from "@pinkslip/dat
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Link, useNavigation, useRoute } from "expo-router";
 import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Image, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Image, RefreshControl, useWindowDimensions, View } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Menu, usePullToRefresh, type MenuItem } from "../../kit";
 import {
-  changedKeys, ChipAction, closeOpenSwipeRow, DropdownChip, EmptyState, GlyphMenu, glyphMenuAction, Icon, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useListMotion, useRowsSwap, useTabBarScroll, useTabBarSpace, useTopEdge,
-  type GlyphMenuItem, type MenuGlyph, type SwipeAction, LastInSection } from "../../ui";
+  changedKeys, closeOpenSwipeRow, EmptyState, FilterChips, GlyphMenu, glyphMenuAction, Icon, JobRow, ListMotionCell, ListMotionProvider, RowPlaceholders, SectionHeader, SwipeRow, Text, toast, TopEdgeBlur, useListMotion, useRowsSwap, useTabBarScroll, useTabBarSpace, useTopEdge,
+  type FilterChipSpec, type GlyphMenuItem, type MenuGlyph, type SwipeAction, LastInSection } from "../../ui";
 import { useMotionTrial } from "../../ui/motion-trial";
 import { useFeedCriteria } from "../feed/Feed";
 import { setFeedSearch } from "../feed/feed-search";
@@ -473,24 +473,33 @@ function QuickFilters({ search, stages, defaults, ready }: { search: FeedSearch;
     const { stage: _stage, loc: _loc, min: _min, ...rest } = search;
     setFeedSearch(rest);
   };
-  return <>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-      {levels.length > 0 ? <DropdownChip label={level ? stageLabel(level) : "Level"} selected={Boolean(level)} menu={(trigger) => <Menu items={[
-        { id: "any", title: "Any", checked: !level, onSelect: () => update("stage", undefined) },
-        ...levels.map((stage): MenuItem => ({ id: stage, title: stageLabel(stage), checked: level === stage, onSelect: () => update("stage", stage) })),
-      ]}>{trigger}</Menu>} /> : null}
-      {places.length + 1 > MENU_CHOICES
-        ? <DropdownChip label={placeLabel} selected={chosen.length > 0} onPress={() => setDrawer(true)} />
-        : <DropdownChip label={placeLabel} selected={chosen.length > 0} staysOpen menu={(trigger) => <GlyphMenu keepOpen items={[
+  const chips: FilterChipSpec[] = [
+    ...(levels.length > 0 ? [{
+      id: "level", label: level ? stageLabel(level) : "Level", selected: Boolean(level),
+      choices: [
+        { id: "any", title: "Any", on: !level, onSelect: () => update("stage", undefined) },
+        ...levels.map((stage) => ({ id: stage, title: stageLabel(stage), on: level === stage, onSelect: () => update("stage", stage) })),
+      ],
+    }] : []),
+    places.length + 1 > MENU_CHOICES
+      ? { id: "location", label: placeLabel, selected: chosen.length > 0, onPress: () => setDrawer(true) }
+      : {
+        id: "location", label: placeLabel, selected: chosen.length > 0, keepOpen: true,
+        choices: [
           { id: "any", title: "Any", on: chosen.length === 0, onSelect: () => choosePlaces([]) },
           ...places.map((id) => ({ id, title: locationLabels[id], on: chosen.includes(id), onSelect: () => togglePlace(id) })),
-        ]}>{trigger}</GlyphMenu>} />}
-      <DropdownChip label={search.min === undefined ? "Pay" : `$${search.min}K+`} selected={search.min !== undefined} menu={(trigger) => <Menu items={[
-        { id: "any", title: "Any", checked: search.min === undefined, onSelect: () => update("min", undefined) },
-        ...PAY_FLOORS.map((min): MenuItem => ({ id: String(min), title: `$${min}K+`, checked: search.min === min, onSelect: () => update("min", min) })),
-      ]}>{trigger}</Menu>} />
-      {picked ? <ChipAction label="Clear" onPress={clear} /> : null}
-    </ScrollView>
+        ],
+      },
+    {
+      id: "pay", label: search.min === undefined ? "Pay" : `$${search.min}K+`, selected: search.min !== undefined,
+      choices: [
+        { id: "any", title: "Any", on: search.min === undefined, onSelect: () => update("min", undefined) },
+        ...PAY_FLOORS.map((min) => ({ id: String(min), title: `$${min}K+`, on: search.min === min, onSelect: () => update("min", min) })),
+      ],
+    },
+  ];
+  return <>
+    <FilterChips chips={chips} onClear={picked ? clear : undefined} />
     <LocationFilterSheet open={drawer} onClosed={() => setDrawer(false)} options={places} chosen={chosen}
       onDone={(next) => { choosePlaces(next); setDrawer(false); }} />
   </>;
@@ -500,7 +509,6 @@ const styles = StyleSheet.create((theme) => ({
   // No color of its own: a list can't take the sheet's change at once, and
   // the tab's page color is right behind it.
   fill: { flex: 1 },
-  chips: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["2"], paddingBottom: theme.ui.space["2"] },
   stale: {
     flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"],
     marginHorizontal: theme.ui.size.gutter, marginTop: theme.ui.space["2"],

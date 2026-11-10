@@ -2,7 +2,8 @@
 // here from src/kit one at a time; read only `theme.ui` inside this folder.
 export { Badge } from "./Badge";
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from "./Button";
-export { Chip, ChipAction, DropdownChip, type ChipProps } from "./Chip";
+export { Chip, type ChipProps } from "./Chip";
+export { FilterChips, type FilterChipSpec, type FilterChoice } from "./FilterChips";
 export { AmountInput, Choice, ChoiceLink, Choices, ChoiceSwitch, type AmountInputProps, type ChoiceLinkProps, type ChoiceProps, type ChoiceSwitchProps } from "./Choices";
 export { CompanyLogo, type CompanyLogoProps } from "./CompanyLogo";
 export { CopyField, CopyGlyph, useCopy, type CopyFieldProps } from "./CopyField";

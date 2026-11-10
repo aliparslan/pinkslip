@@ -150,7 +150,8 @@ export function SectionHeader({ title, count, needsYou, leading, onPress, first,
     {leading ? <View style={styles.sectionLeading}>{leading}</View> : null}
     <View style={[styles.sectionLabel, menu && styles.sectionLabelCentered]}>
       {menu ? <View style={styles.sectionMenu}>
-        <Menu items={menu}>
+        {/* A new name gets a new host: an old one shows it off-centre for a moment. */}
+        <Menu key={title} items={menu}>
           <View style={styles.sectionMenuName} accessibilityRole="button" accessibilityLabel={`Sorted by ${title}`}>
             <Text role="section" tone={tone}>{title}</Text>
             <Icon name="down" size={12} tone={tone} />
