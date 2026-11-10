@@ -481,7 +481,7 @@ function QuickFilters({ search, stages, defaults, ready }: { search: FeedSearch;
       ]}>{trigger}</Menu>} /> : null}
       {places.length + 1 > MENU_CHOICES
         ? <DropdownChip label={placeLabel} selected={chosen.length > 0} onPress={() => setDrawer(true)} />
-        : <DropdownChip label={placeLabel} selected={chosen.length > 0} menu={(trigger) => <GlyphMenu keepOpen items={[
+        : <DropdownChip label={placeLabel} selected={chosen.length > 0} staysOpen menu={(trigger) => <GlyphMenu keepOpen items={[
           { id: "any", title: "Any", on: chosen.length === 0, onSelect: () => choosePlaces([]) },
           ...places.map((id) => ({ id, title: locationLabels[id], on: chosen.includes(id), onSelect: () => togglePlace(id) })),
         ]}>{trigger}</GlyphMenu>} />}

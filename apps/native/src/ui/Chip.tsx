@@ -51,13 +51,17 @@ const FILL = timing({ duration: motion.list.fade, curve: [0.23, 1, 0.32, 1] });
 // The old words are gone before the new ones show, so the two never read as one smear.
 const WORDS_OUT = FadeOut.duration(80);
 const WORDS_IN = FadeIn.duration(180).delay(70);
+/** How long the drawn chip stands in after a change: past the spring and the fill. */
+const SETTLE = 360;
 
 export interface DropdownChipProps {
   label: string;
   selected?: boolean;
   onPress?: () => void;
-  /** Puts the clear layer that takes the tap inside a system menu. */
+  /** Puts what takes the tap inside a system menu. */
   menu?: (trigger: ReactNode) => ReactNode;
+  /** The menu stays open while choices change, so its host can't be replaced. */
+  staysOpen?: boolean;
 }
 
 /**
@@ -67,17 +71,36 @@ export interface DropdownChipProps {
  *
  * The chip is drawn apart from the menu. A system menu's trigger is hosted
  * in its own surface that can't follow a width changing every frame, so the
- * menu holds only a clear layer laid over the top, at the chip's final size.
+ * menu holds a layer laid over the top, at the chip's final size.
+ *
+ * iOS hides a menu's trigger while it's open and closes the glass back into
+ * it, so a clear layer leaves the glass landing on the drawn chip and warping
+ * its words (docs/chip-menu-glass-2026-11-09.md). At rest the layer is a real
+ * copy of the chip and the drawn one is hidden; the drawn one only shows while
+ * it's moving (Kit: "The menu lands on its chip"). The host keeps a stale width
+ * and clips the copy square if it's only resized, so a new width gets a new
+ * host. A menu that stays open can't lose its host, so it keeps the clear layer.
  */
-export function DropdownChip({ label, selected = false, onPress, menu }: DropdownChipProps) {
+export function DropdownChip({ label, selected = false, onPress, menu, staysOpen = false }: DropdownChipProps) {
   const { theme } = useUnistyles();
   const reduced = useReducedMotion();
   const trial = useMotionTrial("chipGrow");
   const moves = trial && !reduced;
+  const lands = useMotionTrial("chipLand") && Boolean(menu) && !staysOpen;
   const press = usePressScale();
   const [words, setWords] = useState<{ label: string; width: number } | null>(null);
   const width = useSharedValue(0);
   const filled = useSharedValue(selected ? 1 : 0);
+  // The look the menu's copy has caught up with. Both layers change in the
+  // same render, so the copy can't show a frame of the new look too early.
+  const [landed, setLanded] = useState("");
+  const look = words ? `${words.label}|${selected}|${words.width}` : "";
+  const copyShows = lands && look !== "" && look === landed;
+  useEffect(() => {
+    if (look === "" || look === landed) return;
+    const timer = setTimeout(() => setLanded(look), SETTLE);
+    return () => clearTimeout(timer);
+  }, [look, landed]);
   useEffect(() => {
     filled.value = moves ? withTiming(selected ? 1 : 0, FILL) : selected ? 1 : 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- follows the prop
@@ -99,17 +122,31 @@ export function DropdownChip({ label, selected = false, onPress, menu }: Dropdow
     setWords({ label, width: next });
   };
   const chipWidth = words ? words.width + CHROME_LEFT + CHROME_RIGHT : undefined;
-  const trigger = <View style={[styles.dropdownTrigger, { width: chipWidth }]} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected }} />;
-  return <Animated.View style={[styles.dropdown, words ? size : styles.dropdownFirst, !menu && press.style]}>
-    <Animated.View style={[styles.dropdownFace, face]} pointerEvents="none" />
-    {words
-      ? <Animated.View key={words.label} style={[styles.dropdownWords, { width: words.width + 1 }]} entering={moves ? WORDS_IN : undefined} exiting={moves ? WORDS_OUT : undefined} pointerEvents="none">
+  const trigger = <View style={[styles.dropdownTrigger, { width: chipWidth }]} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected }}>
+    {lands && words ? <View style={[styles.dropdownCopy, { width: chipWidth, opacity: copyShows ? 1 : 0 }]}>
+      <View style={[styles.dropdownFace, selected ? styles.dropdownFaceOn : styles.dropdownFaceOff]} />
+      <View style={[styles.dropdownWords, { width: words.width + 1 }]}>
         <Text role="subhead" tone={selected ? "bg" : "ink"} lines={1}>{words.label}</Text>
-      </Animated.View>
-      : <Text role="subhead" tone={selected ? "bg" : "ink"} lines={1}>{label}</Text>}
-    <View style={styles.dropdownCaret} pointerEvents="none">
-      <Animated.View style={[styles.dropdownCaretLayer, caretOff]}><Icon name="down" size={CARET} tone="ink-2" /></Animated.View>
-      <Animated.View style={[styles.dropdownCaretLayer, caretOn]}><Icon name="down" size={CARET} tone="bg" /></Animated.View>
+      </View>
+      <View style={styles.dropdownCaret}>
+        <Icon name="down" size={CARET} tone={selected ? "bg" : "ink-2"} />
+      </View>
+    </View> : null}
+  </View>;
+  return <Animated.View style={[styles.dropdown, words ? size : styles.dropdownFirst, !menu && press.style]}>
+    {/* Sizes the chip until its words are measured. */}
+    {words ? null : <Text role="subhead" tone={selected ? "bg" : "ink"} lines={1}>{label}</Text>}
+    <View style={[styles.dropdownDrawn, { opacity: copyShows ? 0 : 1 }]} pointerEvents="none">
+      <Animated.View style={[styles.dropdownFace, face]} />
+      {words
+        ? <Animated.View key={words.label} style={[styles.dropdownWords, { width: words.width + 1 }]} entering={moves ? WORDS_IN : undefined} exiting={moves ? WORDS_OUT : undefined}>
+          <Text role="subhead" tone={selected ? "bg" : "ink"} lines={1}>{words.label}</Text>
+        </Animated.View>
+        : null}
+      <View style={styles.dropdownCaret}>
+        <Animated.View style={[styles.dropdownCaretLayer, caretOff]}><Icon name="down" size={CARET} tone="ink-2" /></Animated.View>
+        <Animated.View style={[styles.dropdownCaretLayer, caretOn]}><Icon name="down" size={CARET} tone="bg" /></Animated.View>
+      </View>
     </View>
     {/* Measures the words at full width, whatever the chip's width is just now. */}
     <View style={styles.dropdownMeasure} pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
@@ -117,7 +154,7 @@ export function DropdownChip({ label, selected = false, onPress, menu }: Dropdow
         <Text role="subhead" lines={1}>{label}</Text>
       </View>
     </View>
-    {words ? <View style={styles.dropdownTap}>
+    {words ? <View key={lands ? chipWidth : undefined} style={styles.dropdownTap}>
       {menu ? menu(trigger) : <Pressable onPress={onPress} onPressIn={press.onPressIn} onPressOut={press.onPressOut}
         accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected }} style={[styles.dropdownTrigger, { width: chipWidth }]} />}
     </View> : null}
@@ -137,7 +174,11 @@ const styles = StyleSheet.create((theme) => ({
   dropdown: { height: theme.ui.size.chip, justifyContent: "center" },
   // Until the words are measured the chip sizes itself, so nothing jumps.
   dropdownFirst: { paddingLeft: CHROME_LEFT, paddingRight: CHROME_RIGHT },
+  dropdownDrawn: { ...StyleSheet.absoluteFillObject, justifyContent: "center" },
+  dropdownCopy: { position: "absolute", top: 0, left: 0, height: theme.ui.size.chip, justifyContent: "center" },
   dropdownFace: { ...StyleSheet.absoluteFillObject, borderRadius: theme.ui.radius.full, borderWidth: BORDER, borderCurve: "continuous" },
+  dropdownFaceOff: { borderColor: theme.ui.color.outline },
+  dropdownFaceOn: { backgroundColor: theme.ui.color.ink, borderColor: theme.ui.color.ink },
   dropdownWords: { position: "absolute", left: CHROME_LEFT },
   dropdownCaret: { position: "absolute", top: 0, bottom: 0, right: 12 + BORDER, width: CARET, justifyContent: "center" },
   dropdownCaretLayer: { position: "absolute" },
