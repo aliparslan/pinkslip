@@ -62,3 +62,34 @@ export function isEvergreenPosting(
   if (isEvergreenTitle(title)) return true;
   return stillListed && postedAt !== null && !isFreshPostedAt(postedAt, nowMs);
 }
+
+/**
+ * Off until the owner turns it on (decided 2026-11-10; see
+ * docs/age-filter-eval-2026-11-09.md). Set it to the moment it goes on.
+ *
+ * Then Greenhouse postings carry the date they were first published instead of
+ * their last edit, so old roles stop passing as new. And a job the 30-day rule
+ * had already hidden by that moment stays hidden: a real date would otherwise
+ * count about 2,600 hidden Greenhouse jobs as old but still listed and bring
+ * them back. Turning it on also means the apps stop calling a Greenhouse date
+ * "Updated" (packages/core/src/job-timing.ts, apps/native's job-facts.ts).
+ */
+export const REAL_POSTED_DATES_FROM: string | null = null;
+
+/**
+ * Whether a job its board still lists stays in the feed past the 30-day
+ * window. Until `hiddenFrom`, that's `isEvergreenPosting` alone. From then on,
+ * a job that had already aged out by its stored date before `hiddenFrom`, and
+ * wasn't being kept, stays out (owner, 2026-11-09: "lets leave them hidden for
+ * now"). A job that ages out later is kept as before.
+ */
+export function keepsPastWindow(
+  listing: { title: string; postedAt: string | null },
+  stored: { evergreen: boolean; postedAt: string | null },
+  hiddenFrom: string | null = REAL_POSTED_DATES_FROM,
+  nowMs = Date.now()
+): boolean {
+  if (!isEvergreenPosting(listing.title, listing.postedAt, true, nowMs)) return false;
+  if (hiddenFrom === null || stored.evergreen || isEvergreenTitle(listing.title)) return true;
+  return isFreshPostedAt(stored.postedAt, new Date(hiddenFrom).getTime());
+}

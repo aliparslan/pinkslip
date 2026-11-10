@@ -937,3 +937,85 @@ describe("pollCompany with a location Jev has ruled on", () => {
     expect(row!.location).not.toBe("London, UK");
   });
 });
+
+describe("pollCompany with real posted dates", () => {
+  let fetchSpy: ReturnType<typeof spyOn> | null = null;
+  afterEach(() => fetchSpy?.mockRestore());
+
+  const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  // Stored date, kept flag, and the date the board lists now.
+  const jobs = {
+    hidden: { ext: "301", stored: daysAgo(60), evergreen: 0, listed: daysAgo(120) },
+    looksNew: { ext: "302", stored: daysAgo(3), evergreen: 0, listed: daysAgo(90) },
+    fresh: { ext: "303", stored: daysAgo(5), evergreen: 0, listed: daysAgo(5) },
+    kept: { ext: "304", stored: daysAgo(70), evergreen: 1, listed: daysAgo(70) },
+    agesOutLater: { ext: "305", stored: daysAgo(31), evergreen: 0, listed: daysAgo(31) },
+    undatedShown: { ext: "306", stored: daysAgo(10), evergreen: 0, listed: null },
+    undatedKept: { ext: "307", stored: daysAgo(300), evergreen: 1, listed: null },
+    undatedHidden: { ext: "308", stored: daysAgo(60), evergreen: 0, listed: null },
+  } satisfies Record<string, { ext: string; stored: string; evergreen: number; listed: string | null }>;
+
+  async function setup() {
+    const { sqlite, db } = sqliteD1();
+    const dir = new URL("../migrations/", import.meta.url).pathname;
+    for (const file of readdirSync(dir).filter((name) => name.endsWith(".sql")).sort()) {
+      sqlite.run(await Bun.file(`${dir}${file}`).text());
+    }
+    sqlite.query(`INSERT INTO companies (id, name, ats_type, source_type, ats_slug) VALUES ('gh', 'GH Co', 'greenhouse', 'greenhouse', 'gh-dates-test')`).run();
+    for (const [name, job] of Object.entries(jobs)) {
+      sqlite.query(
+        `INSERT INTO jobs (id, company_id, external_id, title, url, location, posted_at, evergreen)
+         VALUES (?, 'gh', ?, 'Software Engineer', ?, 'Remote', ?, ?)`
+      ).run(name, job.ext, `https://example.com/${job.ext}`, job.stored, job.evergreen);
+    }
+    // The registry's adapter reads updated_at while the switch is off, so the
+    // listed date goes there; the adapter's own test covers first_published.
+    fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async () =>
+      new Response(JSON.stringify({
+        jobs: Object.values(jobs).map((job) => ({
+          id: Number(job.ext), title: "Software Engineer", absolute_url: `https://example.com/${job.ext}`,
+          location: { name: "Remote" }, updated_at: job.listed, content: "", departments: [],
+        })),
+      }), { headers: { "content-type": "application/json" } })
+    ) as unknown as typeof fetch);
+    const company = sqlite.query("SELECT * FROM companies WHERE id = 'gh'").get() as CompanyRow;
+    const stored = () => Object.fromEntries(
+      (sqlite.query(
+        `SELECT id, posted_at, evergreen,
+                (evergreen = 1 OR posted_at IS NULL OR datetime(posted_at) > datetime('now', '-30 days')) AS visible
+         FROM jobs`
+      ).all() as Array<{ id: string; posted_at: string | null; evergreen: number; visible: number }>)
+        .map((row) => [row.id, row])
+    );
+    const queued = () => (sqlite.query("SELECT COUNT(*) AS n FROM notification_match_backlog").get() as { n: number }).n;
+    return { db, company, stored, queued };
+  }
+
+  it("moves dates to the real ones, keeps the hidden job hidden and alerts no one", async () => {
+    const { db, company, stored, queued } = await setup();
+    for (let poll = 0; poll < 2; poll += 1) {
+      await pollCompany(company, db, [], { realPostedDatesFrom: daysAgo(2) });
+      const rows = stored();
+      expect(rows.hidden).toMatchObject({ posted_at: jobs.hidden.listed, evergreen: 0, visible: 0 });
+      expect(rows.looksNew).toMatchObject({ posted_at: jobs.looksNew.listed, evergreen: 1, visible: 1 });
+      expect(rows.fresh).toMatchObject({ posted_at: jobs.fresh.stored, evergreen: 0, visible: 1 });
+      expect(rows.kept).toMatchObject({ evergreen: 1, visible: 1 });
+      expect(rows.agesOutLater).toMatchObject({ evergreen: 1, visible: 1 });
+      // No first-published date: undated, so it reads "Found" and stays while
+      // listed, except a job the age rule already hides.
+      expect(rows.undatedShown).toMatchObject({ posted_at: null, evergreen: 0, visible: 1 });
+      expect(rows.undatedKept).toMatchObject({ posted_at: null, evergreen: 0, visible: 1 });
+      expect(rows.undatedHidden).toMatchObject({ posted_at: jobs.undatedHidden.stored, evergreen: 0, visible: 0 });
+    }
+    expect(queued()).toBe(0);
+  });
+
+  it("leaves stored dates alone while switched off", async () => {
+    const { db, company, stored } = await setup();
+    await pollCompany(company, db, [], { realPostedDatesFrom: null });
+    const rows = stored();
+    for (const [name, job] of Object.entries(jobs)) expect(rows[name].posted_at).toBe(job.stored);
+    // Without the hold, an old listed date brings the hidden job back.
+    expect(rows.hidden).toMatchObject({ evergreen: 1, visible: 1 });
+  });
+});

@@ -98,6 +98,9 @@ describe("strong matches", () => {
     expect(isStrongMatch(base)).toBe(true);
     expect(isStrongMatch({ ...base, atsType: "lever" })).toBe(false);
     expect(isStrongMatch({ ...base, evergreen: true })).toBe(false);
+    // Posted 30 or more days ago, even when it isn't marked as kept.
+    const aged = { ...base.listing, postedAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString() };
+    expect(isStrongMatch({ ...base, listing: aged })).toBe(false);
     // Outside the search entirely.
     const senior = listing("Staff Software Engineer", { description: "10+ years of experience required." });
     expect(isStrongMatch({ ...base, listing: senior, features: classifyJob(senior) })).toBe(false);

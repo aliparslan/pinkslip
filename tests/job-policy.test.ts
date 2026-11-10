@@ -3,6 +3,7 @@ import {
   isEvergreenPosting,
   isEvergreenTitle,
   isFreshPostedAt,
+  keepsPastWindow,
   MAX_POSTED_AGE_DAYS,
   namesUpcomingCohort,
 } from "../shared/job-policy";
@@ -76,5 +77,49 @@ describe("namesUpcomingCohort", () => {
   test("lets this year's cohort count only until June", () => {
     expect(namesUpcomingCohort("Software Engineer Intern, Summer 2027", MAR_2027)).toBe(true);
     expect(namesUpcomingCohort("Software Engineer Intern, Summer 2027", AUG_2027)).toBe(false);
+  });
+});
+
+describe("keepsPastWindow", () => {
+  const now = new Date("2026-12-01T12:00:00.000Z").getTime();
+  const from = "2026-11-10T00:00:00.000Z";
+  const old = { title: "Software Engineer", postedAt: "2026-08-01T00:00:00.000Z" };
+  const fresh = { title: "Software Engineer", postedAt: "2026-11-25T00:00:00.000Z" };
+
+  test("is the posting rule alone while switched off", () => {
+    expect(keepsPastWindow(old, { evergreen: false, postedAt: "2026-09-01T00:00:00.000Z" }, null, now)).toBe(true);
+    expect(keepsPastWindow(fresh, { evergreen: false, postedAt: fresh.postedAt }, null, now)).toBe(false);
+  });
+
+  test("keeps a job already hidden before the switch hidden", () => {
+    // Stored 30+ days before the switch and not kept: hidden by then.
+    expect(keepsPastWindow(old, { evergreen: false, postedAt: "2026-09-01T00:00:00.000Z" }, from, now)).toBe(false);
+  });
+
+  test("keeps a job that was already being kept", () => {
+    expect(keepsPastWindow(old, { evergreen: true, postedAt: "2026-09-01T00:00:00.000Z" }, from, now)).toBe(true);
+  });
+
+  test("keeps a job that was still in the window at the switch", () => {
+    // Greenhouse's last edit made it look recent; its real date is old.
+    expect(keepsPastWindow(old, { evergreen: false, postedAt: "2026-11-05T00:00:00.000Z" }, from, now)).toBe(true);
+    // Its stored date already moved to the real one, and it ages out after the switch.
+    expect(keepsPastWindow(
+      { title: "Software Engineer", postedAt: "2026-10-20T00:00:00.000Z" },
+      { evergreen: false, postedAt: "2026-10-20T00:00:00.000Z" },
+      from,
+      now
+    )).toBe(true);
+    expect(keepsPastWindow(old, { evergreen: false, postedAt: null }, from, now)).toBe(true);
+  });
+
+  test("never keeps a job that is still fresh, and always keeps a standing pipeline", () => {
+    expect(keepsPastWindow(fresh, { evergreen: true, postedAt: fresh.postedAt }, from, now)).toBe(false);
+    expect(keepsPastWindow(
+      { title: "General Application", postedAt: "2026-08-01T00:00:00.000Z" },
+      { evergreen: false, postedAt: "2026-08-01T00:00:00.000Z" },
+      from,
+      now
+    )).toBe(true);
   });
 });

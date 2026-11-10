@@ -31,7 +31,7 @@ import {
   isPotentialCatalogJobListing,
   loadCustomTitles,
 } from "./job-scope";
-import { isEvergreenPosting } from "../shared/job-policy";
+import { isEvergreenPosting, isFreshPostedAt, keepsPastWindow, REAL_POSTED_DATES_FROM } from "../shared/job-policy";
 import {
   notifyAdminsOfQuarantinedSources,
   type QuarantinedSource,
@@ -456,6 +456,8 @@ interface ExistingJobStateRow {
   external_id: string;
   closed_at: string | null;
   missed_polls: number;
+  posted_at: string | null;
+  evergreen: number;
 }
 
 export function unresolvedJobReferences(
@@ -592,6 +594,8 @@ interface PollCompanyOptions {
   recordDecisions?: (companyId: string, jobs: JobListing[], customTitles: readonly string[]) => Promise<void>;
   /** Off until Jev is scored on postings that name only foreign places (docs/JOB_CLASSIFICATION.md). */
   admitLocationRulings?: boolean;
+  /** `REAL_POSTED_DATES_FROM` unless a test says otherwise. */
+  realPostedDatesFrom?: string | null;
 }
 
 export interface PollingSnapshot {
@@ -676,7 +680,7 @@ export async function pollCompany(
   const [existing, blocked] = await Promise.all([
     db
       .prepare(
-        "SELECT external_id, closed_at, missed_polls FROM jobs WHERE company_id = ?"
+        "SELECT external_id, closed_at, missed_polls, posted_at, evergreen FROM jobs WHERE company_id = ?"
       )
       .bind(company.id)
       .all<ExistingJobStateRow>(),
@@ -919,21 +923,42 @@ export async function pollCompany(
   // The raw snapshot can, and that is the whole distinction between a standing
   // requisition and a role that was filled and removed.
   const snapshotById = new Map(fetchedSnapshot.map((job) => [job.externalId, job]));
+  const storedById = new Map(existingRows.map((row) => [row.external_id, row]));
+  const realPostedDatesFrom = options.realPostedDatesFrom === undefined
+    ? REAL_POSTED_DATES_FROM
+    : options.realPostedDatesFrom;
 
   const updateStmts = [];
   for (const extId of existingIds) {
     const listed = snapshotById.get(extId);
     if (listed) {
-      const evergreen = isEvergreenPosting(listed.title, listed.postedAt, true);
+      const stored = storedById.get(extId)!;
+      const evergreen = keepsPastWindow(
+        listed,
+        { evergreen: stored.evergreen === 1, postedAt: stored.posted_at },
+        realPostedDatesFrom
+      ) ? 1 : 0;
+      // A Greenhouse job stored with its last edit moves to the date it was
+      // first published, so an old role stops sitting among the new ones. One
+      // with no such date reads "Found", unless that would bring back a job
+      // the age rule hides.
+      const hiddenNow = stored.evergreen !== 1 && !isFreshPostedAt(stored.posted_at);
+      const redate = realPostedDatesFrom !== null
+        && adapter.name === "greenhouse"
+        && listed.postedAt !== stored.posted_at
+        && (listed.postedAt !== null || !hiddenNow)
+        ? 1
+        : 0;
       if (reopenableExtIds.has(extId)) {
         updateStmts.push(
           db
             .prepare(
-              `UPDATE jobs SET missed_polls = 0, closed_at = NULL, evergreen = ?
+              `UPDATE jobs SET missed_polls = 0, closed_at = NULL, evergreen = ?,
+                 posted_at = CASE WHEN ? = 1 THEN ? ELSE posted_at END
                WHERE company_id = ? AND external_id = ?
-                 AND (missed_polls != 0 OR closed_at IS NOT NULL OR evergreen != ?)`
+                 AND (missed_polls != 0 OR closed_at IS NOT NULL OR evergreen != ? OR ? = 1)`
             )
-            .bind(evergreen ? 1 : 0, company.id, extId, evergreen ? 1 : 0)
+            .bind(evergreen, redate, listed.postedAt, company.id, extId, evergreen, redate)
         );
       } else {
         // Cleanup deliberately closed this title/location. Seeing it on the
@@ -942,11 +967,12 @@ export async function pollCompany(
         updateStmts.push(
           db
             .prepare(
-              `UPDATE jobs SET missed_polls = 0, evergreen = ?
+              `UPDATE jobs SET missed_polls = 0, evergreen = ?,
+                 posted_at = CASE WHEN ? = 1 THEN ? ELSE posted_at END
                WHERE company_id = ? AND external_id = ?
-                 AND (missed_polls != 0 OR evergreen != ?)`
+                 AND (missed_polls != 0 OR evergreen != ? OR ? = 1)`
             )
-            .bind(evergreen ? 1 : 0, company.id, extId, evergreen ? 1 : 0)
+            .bind(evergreen, redate, listed.postedAt, company.id, extId, evergreen, redate)
         );
       }
     }

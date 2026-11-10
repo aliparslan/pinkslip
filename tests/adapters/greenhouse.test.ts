@@ -79,6 +79,23 @@ describe("GreenhouseAdapter", () => {
     expect(jobs[1].department).toBeNull();
   });
 
+  it("uses the first published date once real dates are on", async () => {
+    stubFetchResolved({
+      ok: true,
+      json: async () => ({
+        jobs: [
+          { ...MOCK_RESPONSE.jobs[0], first_published: "2026-02-01T09:00:00Z" },
+          MOCK_RESPONSE.jobs[1],
+        ],
+      }),
+    });
+
+    const jobs = await new GreenhouseAdapter(true).fetchJobs("anthropic");
+    expect(jobs[0].postedAt).toBe("2026-02-01T09:00:00Z");
+    // The last edit is never a posting date; without one the job reads "Found".
+    expect(jobs[1].postedAt).toBeNull();
+  });
+
   it("throws on non-ok HTTP response", async () => {
     stubFetchResolved({
       ok: false,

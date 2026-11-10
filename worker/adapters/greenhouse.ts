@@ -1,6 +1,7 @@
 import type { ATSAdapter, JobListing, JobContent } from "./types";
 import { extractSalaryFromHtml, formatGreenhouseSalary, greenhousePayRanges } from "./salary";
 import { fetchWithTimeout } from "../http";
+import { REAL_POSTED_DATES_FROM } from "../../shared/job-policy";
 
 interface GreenhouseJob {
   id: number;
@@ -8,7 +9,9 @@ interface GreenhouseJob {
   location: { name: string };
   departments: { name: string }[];
   absolute_url: string;
+  /** The last edit, which moves whenever anyone touches the posting. */
   updated_at: string;
+  first_published?: string | null;
   content: string;
   pay_input_ranges?: { min_cents: number; max_cents: number; currency_type: string; title: string }[];
 }
@@ -48,6 +51,11 @@ function decodeGreenhouseContent(content: string | null): string | null {
 export class GreenhouseAdapter implements ATSAdapter {
   readonly name = "greenhouse";
 
+  /** Whether postings carry `first_published` rather than the last edit:
+   * 72% of postings that looked under 30 days old by their last edit were
+   * first published earlier (docs/age-filter-eval-2026-11-09.md). */
+  constructor(private readonly firstPublished = REAL_POSTED_DATES_FROM !== null) {}
+
   async fetchJobs(slug: string): Promise<JobListing[]> {
     try {
       // Pay ranges come only when asked for (pay by place, 2026-10-19).
@@ -68,7 +76,7 @@ export class GreenhouseAdapter implements ATSAdapter {
           url: job.absolute_url,
           location: job.location.name,
           department: job.departments[0]?.name ?? null,
-          postedAt: job.updated_at,
+          postedAt: this.firstPublished ? job.first_published ?? null : job.updated_at,
           description: decodeGreenhouseContent(job.content) || null,
           salary,
           payRanges: greenhousePayRanges(job.pay_input_ranges),
