@@ -1,7 +1,8 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { EnvelopeSimple } from "@phosphor-icons/react";
-import { useDeleteAccount, useSession, useSignOut, useStartEmailLogin, useUpdateName } from "@pinkslip/data";
+import { ApiError } from "@pinkslip/core/api";
+import { useDeleteAccount, useSession, useSignOut, useStartEmailCode, useUpdateName, useVerifyEmailCode } from "@pinkslip/data";
 import { Alert, AlertDialog, Badge, Button, Field, Heading, Input, SaveStatus, Stack, Surface, Text, toast } from "../../kit";
 import { useAutosave } from "../settings/useAutosave";
 import { clearResumeFile } from "../resume/resume-file";
@@ -125,10 +126,16 @@ function NameCard({ initial }: { initial: string }) {
 
 function EmailSignIn({ onRestart, appleEnabled }: { onRestart?: () => void; appleEnabled: boolean }) {
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const start = useStartEmailLogin();
-  const resend = sentTo !== null && sentTo.toLowerCase() === email.trim().toLowerCase();
+  const start = useStartEmailCode();
+  const verify = useVerifyEmailCode();
+
+  const send = (address: string) => start.mutate(address, {
+    onSuccess: () => { setSentTo(address); setCode(""); setError(null); },
+    onError: () => setError("Couldn't send the code. Try again."),
+  });
 
   return <Stack gap="4">
     <Stack gap="1">
@@ -138,29 +145,49 @@ function EmailSignIn({ onRestart, appleEnabled }: { onRestart?: () => void; appl
     {appleEnabled && <form method="post" action="/api/v2/auth/apple/web/start">
       <Button type="submit" variant="secondary" icon={AppleMark} fullWidth>Sign in with Apple</Button>
     </form>}
-    <form className={styles.emailForm} noValidate onSubmit={(event) => {
-      event.preventDefault();
-      const value = email.trim();
-      if (!looksLikeEmail(value)) {
-        setError(value ? "Enter a valid email address." : "Enter your email address.");
-        return;
-      }
-      setError(null);
-      start.mutate(value, {
-        onSuccess: () => setSentTo(value),
-        onError: () => setError("Couldn't send the link. Try again."),
-      });
-    }}>
-      <Field label="Email" error={error}>
-        <Input type="email" inputMode="email" autoComplete="email" autoCapitalize="off" spellCheck={false}
-          placeholder="you@example.com" value={email}
-          onChange={(event) => { setEmail(event.target.value); setError(null); }} />
-      </Field>
-      <Button type="submit" variant="primary" icon={EnvelopeSimple} pending={start.isPending}>
-        {resend ? "Resend link" : "Send link"}
-      </Button>
-    </form>
-    {sentTo && !error && <Alert tone="success">Link sent to {sentTo}. Open it on this device to finish signing in.</Alert>}
+    {sentTo === null
+      ? <form className={styles.emailForm} noValidate onSubmit={(event) => {
+        event.preventDefault();
+        const value = email.trim();
+        if (!looksLikeEmail(value)) {
+          setError(value ? "Enter a valid email address." : "Enter your email address.");
+          return;
+        }
+        setError(null);
+        send(value);
+      }}>
+        <Field label="Email" error={error}>
+          <Input type="email" inputMode="email" autoComplete="email" autoCapitalize="off" spellCheck={false}
+            placeholder="you@example.com" value={email}
+            onChange={(event) => { setEmail(event.target.value); setError(null); }} />
+        </Field>
+        <Button type="submit" variant="primary" icon={EnvelopeSimple} pending={start.isPending}>Send code</Button>
+      </form>
+      : <Stack gap="3">
+        <form className={styles.emailForm} noValidate onSubmit={(event) => {
+          event.preventDefault();
+          const value = code.trim();
+          if (!/^\d{6}$/.test(value)) {
+            setError("Enter the 6-digit code.");
+            return;
+          }
+          setError(null);
+          verify.mutate({ email: sentTo, code: value }, {
+            onError: (failure) => setError(failure instanceof ApiError && failure.status < 500 ? failure.message : "Couldn't sign in. Try again."),
+          });
+        }}>
+          <Field label="Code" error={error}>
+            <Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6 digits" value={code}
+              onChange={(event) => { setCode(event.target.value); setError(null); }} />
+          </Field>
+          <Button type="submit" variant="primary" pending={verify.isPending}>Sign in</Button>
+        </form>
+        {!error && <Alert tone="success">Code sent to {sentTo}.</Alert>}
+        <div className={styles.codeActions}>
+          <Button variant="secondary" size="compact" pending={start.isPending} onClick={() => send(sentTo)}>Resend code</Button>
+          <Button variant="secondary" size="compact" onClick={() => { setSentTo(null); setError(null); }}>Use another email</Button>
+        </div>
+      </Stack>}
     {onRestart && <div><Button variant="secondary" size="compact" onClick={onRestart}>Start over</Button></div>}
   </Stack>;
 }

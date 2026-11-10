@@ -94,9 +94,22 @@ export function useUpdateName() {
   });
 }
 
-export function useStartEmailLogin() {
+export function useStartEmailCode() {
   const api = useApi();
-  return useMutation({ mutationFn: (email: string) => api.auth.startEmailLogin(email) });
+  return useMutation({ mutationFn: (email: string) => api.auth.startEmailCode(email) });
+}
+
+/** Signs in with the emailed code and adopts the session it returns. */
+export function useVerifyEmailCode() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { email: string; code: string }) => api.auth.verifyEmailCode(input),
+    onSuccess: async (me) => {
+      queryClient.setQueryData(queryKeys.session(), sessionFrom(me));
+      await clearPersonalQueries(queryClient);
+    },
+  });
 }
 
 /** Deletes the account and adopts the guest session the server returns. */

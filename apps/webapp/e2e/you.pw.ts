@@ -78,7 +78,7 @@ test("alerts: the account switch saves; the device row reflects the browser", as
   await expect(page.getByText("This device")).toBeVisible();
 });
 
-test("a guest signs in by email link, with validation first", async ({ page }) => {
+test("a guest signs in with an emailed code, with validation first", async ({ page }) => {
   const writes: Write[] = [];
   await installApiMocks(page, { onWrite: (write) => writes.push(write) });
   await guest(page);
@@ -86,13 +86,19 @@ test("a guest signs in by email link, with validation first", async ({ page }) =
   await expect(page.getByText("Browsing as a guest")).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in with Apple" })).toHaveCount(0);
   await page.getByLabel("Email").fill("not-an-email");
-  await page.getByRole("button", { name: "Send link" }).click();
+  await page.getByRole("button", { name: "Send code" }).click();
   await expect(page.getByText("Enter a valid email address.")).toBeVisible();
   await page.getByLabel("Email").fill("avery@example.com");
-  await page.getByRole("button", { name: "Send link" }).click();
-  await expect(page.getByText("Link sent to avery@example.com.", { exact: false })).toBeVisible();
-  expect(writes.find((write) => write.path === "/auth/email/start")?.body).toEqual({ email: "avery@example.com" });
-  await expect(page.getByRole("button", { name: "Resend link" })).toBeVisible();
+  await page.getByRole("button", { name: "Send code" }).click();
+  await expect(page.getByText("Code sent to avery@example.com.", { exact: false })).toBeVisible();
+  expect(writes.find((write) => write.path === "/auth/email/code/start")?.body).toEqual({ email: "avery@example.com" });
+  await expect(page.getByRole("button", { name: "Resend code" })).toBeVisible();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByText("Enter the 6-digit code.")).toBeVisible();
+  await page.route("**/api/v2/auth/email/code/verify", (route) => route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: "That code isn't right", code: "wrong_code" }) }));
+  await page.getByLabel("Code").fill("123456");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByText("That code isn't right")).toBeVisible();
 });
 
 test("configured Apple sign-in starts through a normal same-origin POST", async ({ page }) => {
