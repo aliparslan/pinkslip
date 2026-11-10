@@ -1,11 +1,24 @@
 import { describe, expect, test } from "bun:test";
 import { DEFAULT_SEARCH_PROFILE, ONBOARDING_VERSION, type SearchProfile } from "../shared/search-profile";
 import {
-  answer, answeredSearch, canContinue, everything, fitsAnswers, flipRemote, jobStages, pickPlace, pickRole, pickStage, unanswered,
+  answer, answeredSearch, canContinue, everything, fitsAnswers, flipRemote, jobStages, joinPool, pickPlace, pickRole, pickStage, unanswered,
 } from "../apps/native/src/features/onboarding/answers";
 
 const profile = (patch: Partial<SearchProfile> = {}): SearchProfile => ({ ...DEFAULT_SEARCH_PROFILE, ...patch });
 const now = new Date("2026-10-18T20:00:00.000Z");
+
+describe("the pool behind the questions", () => {
+  const job = (id: string, posted_at: string | null, first_seen_at = "2026-10-01T00:00:00.000Z") => ({ id, posted_at, first_seen_at });
+
+  test("keeps a sparse stage's jobs, newest first, each once", () => {
+    const pool = joinPool([
+      [job("mid-new", "2026-10-18T00:00:00.000Z"), job("both", "2026-10-10T00:00:00.000Z")],
+      [job("grad-older", "2026-09-20T00:00:00.000Z"), job("both", "2026-10-10T00:00:00.000Z")],
+      [job("undated", null, "2026-10-12T00:00:00.000Z")],
+    ]);
+    expect(pool.map((row) => row.id)).toEqual(["mid-new", "undated", "both", "grad-older"]);
+  });
+});
 
 describe("onboarding's three questions", () => {
   test("start unanswered rather than ticked with the defaults", () => {

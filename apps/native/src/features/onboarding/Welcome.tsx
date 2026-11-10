@@ -12,7 +12,8 @@ import { useTabBarStepsAside } from "../../ui";
 import { motion, spring } from "../../ui/motion";
 import { screenCornerRadius } from "../../ui/screen-corners";
 import { useFeedCriteria } from "../feed/Feed";
-import { everything, unanswered } from "./answers";
+import { STAGES_IN_ORDER } from "../redesign/search-draft";
+import { everything, joinPool, unanswered } from "./answers";
 import { Handles } from "./Handles";
 import { Hook, settleTime, type ButtonRect } from "./Hook";
 import { PreviewFeed } from "./PreviewFeed";
@@ -21,8 +22,9 @@ import { Questions } from "./Questions";
 const { bloom: BLOOM } = motion.onboarding;
 
 /** Jobs fetched while the hook plays, for the feed behind the questions to
- * narrow on the phone: the newest first, enough to fill it for any answer. */
-const POOL = "400";
+ * narrow on the phone: each stage's newest, so a stage few postings are for
+ * still fills it. */
+const POOL_PER_STAGE = "150";
 
 /** Once the rows have moved to Jobs' own list, how long they get to land
  * before the sheet goes. */
@@ -84,7 +86,8 @@ export function Welcome({ saves, counts, onDone, onAccount }: WelcomeProps) {
     queryKey: ["onboarding", "pool", saves],
     queryFn: async () => {
       if (saves && saved) await update.mutateAsync({ search_profile: everything(saved) });
-      return (await api.jobs.list({ limit: POOL })).jobs;
+      const slices = await Promise.all(STAGES_IN_ORDER.map((stages) => api.jobs.list({ stages, limit: POOL_PER_STAGE })));
+      return joinPool(slices.map((slice) => slice.jobs));
     },
     enabled: ready,
     staleTime: Infinity,

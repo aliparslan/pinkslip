@@ -104,6 +104,15 @@ export function jobStages(matchFact: string | null | undefined): CareerStage[] |
 const aliases = new Map<string, readonly string[]>(LOCATION_OPTIONS.map((option) => [option.id, option.aliases]));
 const inPlaces = (text: string, ids: readonly string[]) => ids.some((id) => aliases.get(id)?.some((alias) => text.includes(alias)));
 
+/** Each stage's newest jobs as one list, newest first, every job once. */
+export function joinPool<Job extends { id: string; posted_at: string | null; first_seen_at: string }>(
+  slices: readonly (readonly Job[])[]
+): Job[] {
+  const jobs = new Map<string, Job>();
+  for (const slice of slices) for (const job of slice) jobs.set(job.id, job);
+  return [...jobs.values()].sort((a, b) => (b.posted_at ?? b.first_seen_at).localeCompare(a.posted_at ?? a.first_seen_at));
+}
+
 /** Whether a job fits the answers so far, for the feed behind the questions,
  * so it changes the moment a chip does (the Onboarding Motion Lab). A
  * question left empty doesn't narrow it, and where only counts once it's
