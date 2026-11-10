@@ -1,4 +1,5 @@
 import type { Job } from "@pinkslip/core/api";
+import { availableRoles } from "@pinkslip/core/feed-criteria";
 import type { Profile } from "@pinkslip/core/profile-fields";
 import { useEffect, useMemo } from "react";
 import { View, useWindowDimensions } from "react-native";
@@ -10,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { FilterChips, IconButton, JobRow, RowPlaceholders, SearchField, SectionHeader, Text, LastInSection, type FilterChipSpec } from "../../ui";
 import { motion, spring } from "../../ui/motion";
+import { useMotionTrial } from "../../ui/motion-trial";
 import { logoUri } from "../jobs/CompanyLogo";
 import { feedSections, plainText, rowAge, rowFacts } from "../redesign/job-facts";
 import { fitsAnswers } from "./answers";
@@ -49,10 +51,11 @@ const rowOut: EntryExitAnimationFunction = () => {
 /** The rest move to their new places on the same spring. */
 const moved = LinearTransition.springify().mass(ROW_SPRING.mass).stiffness(ROW_SPRING.stiffness).damping(ROW_SPRING.damping);
 
-/** Jobs' own row at rest. Level is there once there's more than one stage to
- * choose between, as it is on Jobs. */
-const restingChips = (stages: number): FilterChipSpec[] => [
+/** Jobs' own row at rest. Level and Role are there once there's more than one
+ * to choose between, as they are on Jobs. */
+const restingChips = (stages: number, roles: number): FilterChipSpec[] => [
   ...(stages > 1 ? [{ id: "level", label: "Level", selected: false }] : []),
+  ...(roles > 1 ? [{ id: "role", label: "Role", selected: false }] : []),
   { id: "location", label: "Location", selected: false },
   { id: "pay", label: "Pay", selected: false },
 ];
@@ -124,6 +127,7 @@ export function PreviewFeed({ jobs, draft, answered, whereAsked, arriving, final
     return listed(jobs.filter((job) => fitsAnswers(job, draft, whereAsked)), false);
   }, [final, jobs, answered, draft, whereAsked]);
 
+  const roleChip = useMotionTrial("roleChip");
   let rows = 0;
   return <Animated.View style={[styles.root, { paddingTop: insets.top }, slide]} pointerEvents="none">
     <View style={styles.header}>
@@ -137,7 +141,7 @@ export function PreviewFeed({ jobs, draft, answered, whereAsked, arriving, final
         <IconButton icon="editSearch" label="Your search" onPress={() => undefined} />
       </View>
     </View>
-    <FilterChips chips={restingChips(draft.target_levels.length)} />
+    <FilterChips chips={restingChips(draft.target_levels.length, roleChip ? availableRoles(draft.roles).length : 0)} />
     {items === null ? <RowPlaceholders />
       : items.length === 0 ? <View style={styles.none}><Text role="subhead" tone="ink-3">Nothing fits these yet.</Text></View>
       : items.map((item, index) => {

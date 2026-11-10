@@ -1,6 +1,6 @@
 import { feedParams, locationLabels, selectedStages, type FeedLocation, type FeedSearch } from "@pinkslip/core/feed-criteria";
 import { timeAgo } from "@pinkslip/core/utils";
-import { CAREER_STAGE_OPTIONS, LOCATION_OPTIONS } from "@pinkslip/domain/search-profile";
+import { CAREER_STAGE_OPTIONS, LOCATION_OPTIONS, roleLabel, type RoleId } from "@pinkslip/domain/search-profile";
 import { useFeed, usePrefetchFeed, useStats, useViewedJobs } from "@pinkslip/data";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { Link, useNavigation, useRoute } from "expo-router";
@@ -28,6 +28,7 @@ import { rowZoomId } from "../../platform/links";
 import { RowZoom, zoomParams } from "./RowZoom";
 import { arrivedAtTop, feedSections, plainText, rowAge, rowFacts, rowTopPay, sectionCount } from "./job-facts";
 import { LocationFilterSheet } from "./LocationFilterSheet";
+import { RoleFilterSheet, roleTitle } from "./RoleFilterSheet";
 import { STAGES_IN_ORDER } from "./search-draft";
 
 // The poller runs every 15 minutes; past two hours it's clearly behind.
@@ -78,7 +79,7 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const edge = useTopEdge();
   const tabBarScroll = useTabBarScroll(list, edge);
   const criteria = useFeedCriteria();
-  const { preferences, available, defaults } = criteria;
+  const { preferences, available, roles, defaults } = criteria;
   const searching = query !== undefined;
   const search = useMemo<FeedSearch>(() => ({ ...criteria.search, q: searching && query.trim() ? query : undefined }), [searching, criteria.search, query]);
   const params = useMemo(() => (scope === "all" ? { q: search.q, scope: "all" as const } : listParams(search, available, defaults)), [scope, search, available, defaults]);
@@ -222,14 +223,14 @@ export function JobsFeed({ query, tab = "(jobs)", onClearQuery, top, chips, afte
   const onlyPlace = scope === "feed" && Boolean(search.loc) && search.loc !== "all" && !search.loc?.includes(",");
   const header = <View>
     {typeof top === "function" ? top(offline) : top}
-    {showChips ? <QuickFilters search={search} stages={available} defaults={defaults} ready={feed.isSuccess && !feed.isPlaceholderData} /> : null}
+    {showChips ? <QuickFilters search={search} stages={available} roles={roles} defaults={defaults} ready={feed.isSuccess && !feed.isPlaceholderData} /> : null}
     {stale && lastPolled ? <View style={styles.stale}>
       <Icon name="warning" size={16} tone="ink-3" />
       <Text role="footnote" tone="ink-2">Updated {timeAgo(lastPolled)}. New jobs may be missing.</Text>
     </View> : null}
   </View>;
 
-  const refined = Boolean(search.loc || search.min || search.max || search.stage || search.listing || search.saved);
+  const refined = Boolean(search.loc || search.min || search.max || search.stage || search.role || search.listing || search.saved);
   return <>
   <ListMotionProvider value={listChange} fade={rowsFade}>
   <FlashList ref={list} {...tabBarScroll} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" data={shown} keyExtractor={(item) => item.key} getItemType={(item) => item.kind}
@@ -427,17 +428,22 @@ const PAY_FLOORS = [100, 150, 200] as const;
 const MENU_CHOICES = 6;
 
 /**
- * Level, Location and Pay, each opening its own choice from the chip (owner,
- * 2026-11-09, Paper "Chips you choose, and a sort · Nov 9"). A picked chip
- * fills in and shows the choice. Remote is Location's first option; Clear
- * resets all three. Level picks one and so does Pay; Location picks several.
+ * Level, Role, Location and Pay, each opening its own choice from the chip
+ * (owner, 2026-11-09, Paper "Chips you choose, and a sort · Nov 9"; Role
+ * 2026-11-10). They narrow the saved search further and never change it, so
+ * Level and Role only offer what's in it. A picked chip fills in and shows
+ * the choice. Remote is Location's first option; Clear resets them all.
+ * Level, Role and Pay pick one; Location picks several.
  */
-function QuickFilters({ search, stages, defaults, ready }: { search: FeedSearch; stages: Parameters<typeof feedParams>[1]; defaults: Parameters<typeof feedParams>[2]; ready: boolean }) {
+function QuickFilters({ search, stages, roles, defaults, ready }: { search: FeedSearch; stages: Parameters<typeof feedParams>[1]; roles: readonly RoleId[]; defaults: Parameters<typeof feedParams>[2]; ready: boolean }) {
   const ahead = useMotionTrial("chipFade");
   const prefetch = usePrefetchFeed();
   const [drawer, setDrawer] = useState(false);
+  const [roleDrawer, setRoleDrawer] = useState(false);
   const levels = stages.length > 1 ? [...stages].sort((a, b) => stageRank(a) - stageRank(b)) : [];
-  const plain = !search.loc && search.min === undefined && !search.stage && !search.q;
+  const roleOptions = roles.length > 1 ? roles : [];
+  const rolesFitMenu = roleOptions.length + 1 <= MENU_CHOICES;
+  const plain = !search.loc && search.min === undefined && !search.stage && !search.role && !search.q;
   // A list takes the server a moment, so the likely ones are fetched before
   // they're picked, one at a time, from the plain list only.
   useEffect(() => {
@@ -445,7 +451,7 @@ function QuickFilters({ search, stages, defaults, ready }: { search: FeedSearch;
     let stopped = false;
     const timer = setTimeout(() => {
       void (async () => {
-        const nexts: FeedSearch[] = [{ ...search, loc: "remote" }, ...levels.map((stage) => ({ ...search, stage })), ...PAY_FLOORS.map((min) => ({ ...search, min }))];
+        const nexts: FeedSearch[] = [{ ...search, loc: "remote" }, ...levels.map((stage) => ({ ...search, stage })), ...(rolesFitMenu ? roleOptions.map((role) => ({ ...search, role })) : []), ...PAY_FLOORS.map((min) => ({ ...search, min }))];
         for (const next of nexts) {
           if (stopped) return;
           await prefetch(listParams(next, stages, defaults)).catch(() => undefined);
@@ -454,9 +460,9 @@ function QuickFilters({ search, stages, defaults, ready }: { search: FeedSearch;
     }, 600);
     return () => { stopped = true; clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per list asked for
-  }, [ahead, ready, plain, levels.join(), defaults]);
+  }, [ahead, ready, plain, levels.join(), roleOptions.join(), defaults]);
 
-  const update = (key: "stage" | "loc" | "min", value: string | number | undefined) => {
+  const update = (key: "stage" | "role" | "loc" | "min", value: string | number | undefined) => {
     const next: FeedSearch = { ...search };
     if (value === undefined) delete next[key];
     else Object.assign(next, { [key]: value });
@@ -468,9 +474,9 @@ function QuickFilters({ search, stages, defaults, ready }: { search: FeedSearch;
   const choosePlaces = (next: readonly FeedLocation[]) => update("loc", next.length > 0 ? next.join(",") : undefined);
   const togglePlace = (id: FeedLocation) => choosePlaces(chosen.includes(id) ? chosen.filter((place) => place !== id) : [...chosen, id]);
   const placeLabel = chosen.length === 0 ? "Location" : `${locationLabels[chosen[0]!]}${chosen.length > 1 ? ` +${chosen.length - 1}` : ""}`;
-  const picked = Boolean(level) || chosen.length > 0 || search.min !== undefined;
+  const picked = Boolean(level) || Boolean(search.role) || chosen.length > 0 || search.min !== undefined;
   const clear = () => {
-    const { stage: _stage, loc: _loc, min: _min, ...rest } = search;
+    const { stage: _stage, role: _role, loc: _loc, min: _min, ...rest } = search;
     setFeedSearch(rest);
   };
   const chips: FilterChipSpec[] = [
@@ -481,6 +487,15 @@ function QuickFilters({ search, stages, defaults, ready }: { search: FeedSearch;
         ...levels.map((stage) => ({ id: stage, title: stageLabel(stage), on: level === stage, onSelect: () => update("stage", stage) })),
       ],
     }] : []),
+    ...(roleOptions.length > 0 ? [rolesFitMenu
+      ? {
+        id: "role", label: search.role ? roleLabel(search.role) : "Role", selected: Boolean(search.role),
+        choices: [
+          { id: "any", title: "Any", on: !search.role, onSelect: () => update("role", undefined) },
+          ...roleOptions.map((role) => ({ id: role, title: roleTitle(role), on: search.role === role, onSelect: () => update("role", role) })),
+        ],
+      }
+      : { id: "role", label: search.role ? roleLabel(search.role) : "Role", selected: Boolean(search.role), onPress: () => setRoleDrawer(true) }] : []),
     places.length + 1 > MENU_CHOICES
       ? { id: "location", label: placeLabel, selected: chosen.length > 0, onPress: () => setDrawer(true) }
       : {
@@ -502,6 +517,8 @@ function QuickFilters({ search, stages, defaults, ready }: { search: FeedSearch;
     <FilterChips chips={chips} onClear={picked ? clear : undefined} />
     <LocationFilterSheet open={drawer} onClosed={() => setDrawer(false)} options={places} chosen={chosen}
       onDone={(next) => { choosePlaces(next); setDrawer(false); }} />
+    <RoleFilterSheet open={roleDrawer} onClosed={() => setRoleDrawer(false)} options={roleOptions} chosen={search.role}
+      onChoose={(role) => { update("role", role); setRoleDrawer(false); }} />
   </>;
 }
 

@@ -1,6 +1,7 @@
 import type { CareerStageQuery, JobsListParams } from "@pinkslip/core/api";
 import { careerStageQuery, orderedCareerStages } from "@pinkslip/core/career-stage-filter";
-import { CAREER_STAGE_OPTIONS, LOCATION_OPTIONS, type CareerStage, type LocationId } from "@pinkslip/domain/search-profile";
+import { expandRoles, visibleRoles } from "@pinkslip/core/profile-fields";
+import { CAREER_STAGE_OPTIONS, LOCATION_OPTIONS, type CareerStage, type LocationId, type RoleId } from "@pinkslip/domain/search-profile";
 
 /**
  * The feed's filters, shared by the web (typed in the URL so a filtered feed
@@ -11,6 +12,7 @@ import { CAREER_STAGE_OPTIONS, LOCATION_OPTIONS, type CareerStage, type Location
  * - `loc`: comma-separated metro ids and/or `remote`, or `all` for anywhere;
  *   absent means the profile's own metros, as the current app preselected
  * - `stage`: comma-separated career stages (a subset of the profile's)
+ * - `role`: one of the profile's roles (the app's chip; the web has no control for it)
  * - `min`, `max`: salary bounds in thousands of dollars
  * - `listing=evergreen`: only long-running listings
  * - `saved=1`: only saved jobs
@@ -19,6 +21,7 @@ export interface FeedSearch {
   q?: string;
   loc?: string;
   stage?: string;
+  role?: RoleId;
   min?: number;
   max?: number;
   listing?: "evergreen";
@@ -104,6 +107,15 @@ export function selectedStages(search: FeedSearch, available: readonly CareerSta
   return selected.length > 0 ? selected : [...available];
 }
 
+/** The roles the filter offers: the ones in the saved search, in display
+ * order. Forward-deployed roles count as SWE, as they do everywhere else. */
+export function availableRoles(profileRoles: readonly string[] | undefined): RoleId[] {
+  const roles = new Set<string>(profileRoles);
+  return visibleRoles
+    .filter((role) => roles.has(role.id) || (role.id === "software_engineering" && roles.has("forward_deployed")))
+    .map((role) => role.id);
+}
+
 /** The API query for one set of filters. Page size and offset are added by
  * the feed query. */
 export function feedParams(search: FeedSearch, available: readonly CareerStage[], defaults: readonly FeedLocation[]): JobsListParams {
@@ -113,6 +125,7 @@ export function feedParams(search: FeedSearch, available: readonly CareerStage[]
   if (chosen.length > 0) params.locations = chosen.map((id) => (id === "remote" ? "Remote" : id)).join(",");
   const stages = careerStageQuery(selectedStages(search, available), available);
   if (stages) params.stages = stages as CareerStageQuery;
+  if (search.role) params.roles = expandRoles([search.role]).join(",");
   if (search.min) params.min_salary = String(search.min * 1000);
   if (search.max) params.max_salary = String(search.max * 1000);
   if (search.listing) params.posted = search.listing;
@@ -127,6 +140,7 @@ export function filterCount(search: FeedSearch, available: readonly CareerStage[
     locations(search, defaults).length > 0,
     search.min || search.max,
     careerStageQuery(selectedStages(search, available), available),
+    search.role,
     search.listing,
     search.saved,
   ].filter(Boolean).length;

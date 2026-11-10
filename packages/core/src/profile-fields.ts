@@ -19,7 +19,7 @@ export const hasNoRolePreference = (profile: Profile) =>
 
 export const hasNoLocationPreference = (profile: Profile) => profile.relocation_willing || profile.location_ids.length === 0;
 
-const expand = (roles: readonly string[]): RoleId[] =>
+export const expandRoles = (roles: readonly string[]): RoleId[] =>
   [...new Set(roles.flatMap((role) => (role === "software_engineering" ? ["software_engineering", "forward_deployed"] : [role])))] as RoleId[];
 
 /** The chips' value: "any" alone, or the visible roles chosen. */
@@ -37,8 +37,8 @@ export function rolesFromChips(profile: Profile, next: readonly string[]): Profi
   const nowAny = next.includes(NO_ROLE_PREFERENCE);
   let roles: RoleId[];
   if (!wasAny && nowAny) roles = [...allRoles];
-  else if (wasAny && nowAny) roles = expand(next.filter((role) => role !== NO_ROLE_PREFERENCE));
-  else roles = expand(next);
+  else if (wasAny && nowAny) roles = expandRoles(next.filter((role) => role !== NO_ROLE_PREFERENCE));
+  else roles = expandRoles(next);
   if (roles.length === 0) return null;
   return { roles, primary_role: roles[0] };
 }

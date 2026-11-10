@@ -1,5 +1,5 @@
 import { Button, Host, HStack, Image, Menu, ScrollView, Text, Toggle } from "@expo/ui/swift-ui";
-import { accessibilityHidden, accessibilityLabel, animation, Animation, background, buttonStyle, contentTransition, font, foregroundStyle, frame, menuActionDismissBehavior, padding, shapes } from "@expo/ui/swift-ui/modifiers";
+import { accessibilityHidden, accessibilityLabel, animation, Animation, background, buttonStyle, contentTransition, fixedSize, font, foregroundStyle, frame, menuActionDismissBehavior, padding, shapes } from "@expo/ui/swift-ui/modifiers";
 import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "react-native-reanimated";
 import { useUnistyles } from "react-native-unistyles";
@@ -94,6 +94,8 @@ export function FilterChips({ chips, onClear }: { chips: readonly FilterChipSpec
   const face = (chip: FilterChipSpec) => {
     const selected = colors.looks[chip.id]?.selected ?? chip.selected;
     return <HStack spacing={space["1"] + 2} modifiers={[
+    // A row wider than the screen scrolls; left alone, iOS squeezes a chip instead.
+    fixedSize({ horizontal: true, vertical: false }),
     padding({ leading: space["4"], trailing: space["3"] }),
     frame({ height: size.chip - BORDER * 2 }),
     background(selected ? color.ink : color.bg, shapes.capsule()),
