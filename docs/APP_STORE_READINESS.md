@@ -107,10 +107,11 @@ candidate, not as one more TestFlight build:
 - [x] Apple Developer → Identifiers → `dev.alip.pinkslip` → **Time Sensitive
   Notifications** is on (owner, 2026-11-09). The project carries that
   entitlement, so an archive needs the App ID to allow it.
-- [ ] Bump to 1.4.0 everywhere `apps/native/README.md` lists, and run
+- [x] Bump to 1.4.0 everywhere `apps/native/README.md` lists, and run
   `bun test tests/native-release.test.ts`. Do this when cutting the
   candidate, not before: until then, updates for testers still go to 1.3.9.
-- [ ] Push `main` (go-ahead). Xcode Cloud builds it with tailoring hidden.
+- [x] Push `main` (go-ahead). Xcode Cloud builds it with tailoring hidden.
+  Done Nov 10 at `5e903ca`; the archive succeeded.
 - [ ] Confirm the Xcode Cloud workflow's Archive action says **TestFlight and
   App Store** under Deployment Preparation. External testing already needs
   it, so this is probably done.
