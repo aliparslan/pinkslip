@@ -267,10 +267,18 @@ A draft for the Notes field:
 - Over-the-air updates carry fixes as before. Anything that changes what the
   reviewer saw goes out in a new version with review notes: Pro, auto-apply
   sends or outreach for everyone. Switching those on with a server flag
-  after review runs into guideline 2.3.1 (hidden features). Outreach's
-  recruiter list also runs into guideline 5.1.2, which bars compiling
-  personal information about people other than the user, even from public
-  sources.
+  after review runs into guideline 2.5.19 (hidden features), which names
+  removal and losing the developer account as the penalty. Outreach's
+  recruiter list also runs into guideline 5.1.1(viii), which bars compiling
+  personal information from anywhere but the user, without consent, even
+  from public databases.
+- Outreach: the rule is enforced unevenly. ZoomInfo, BeenVerified, Whitepages,
+  Intelius and PeopleFinders are on the store, while developers report
+  rejections for a caller-ID app and a public-data aggregator. Masking an
+  address on screen wouldn't change anything, because the rule is about
+  compiling the list. Plan: its own version with honest review notes. If
+  that's rejected, the person brings the recruiter's name or profile and
+  Pinkslip works out the address for that one person.
 - Update notes after an update with visible changes, approved by the owner.
 
 ## Later
