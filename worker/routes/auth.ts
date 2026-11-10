@@ -57,9 +57,10 @@ auth.onError((error, c) => {
   throw error;
 });
 
-/** Turned on once every app in use sends the handoff; older ones can't. See
- * docs/APP_STORE_READINESS.md. */
-const GOOGLE_HANDOFF_REQUIRED = false;
+/** A Google sign-in on the iPhone has to hand back what only that phone was
+ * sent. An app from before this can't finish one until it updates (the owner
+ * chose this on Nov 10; three accounts use Google). */
+const GOOGLE_HANDOFF_REQUIRED = true;
 
 auth.post("/apple/web/start", async (c) => {
   c.header("Cache-Control", "no-store");

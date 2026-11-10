@@ -102,9 +102,8 @@ candidate, not as one more TestFlight build:
 
 - [x] The app draws in the system font (6eaf446, 2026-11-04). The redesign
   used the Klim trial cuts, which can't ship in a store build.
-- [ ] Once every app in use has the Google sign-in update (a production update,
-  or this build), set `GOOGLE_HANDOFF_REQUIRED` to `true` in
-  `worker/routes/auth.ts` and deploy.
+- [x] Google sign-in on the iPhone requires the handoff (owner, Nov 10). An app
+  from before the update can't finish a Google sign-in until it updates.
 - [x] Apple Developer → Identifiers → `dev.alip.pinkslip` → **Time Sensitive
   Notifications** is on (owner, 2026-11-09). The project carries that
   entitlement, so an archive needs the App ID to allow it.

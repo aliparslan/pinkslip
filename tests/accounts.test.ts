@@ -265,9 +265,10 @@ describe("Google sign-in", () => {
     const handoff = location.searchParams.get("handoff")!;
     expect(handoff.length).toBeGreaterThan(20);
 
-    // Another session can't collect it, and neither can a wrong handoff.
+    // Another session can't collect it, and neither can a wrong handoff or none.
     expect((await app(await guest(db))("/api/v2/auth/google/native/finish", { state: started.state, handoff })).status).toBe(400);
     expect((await call("/api/v2/auth/google/native/finish", { state: started.state, handoff: "not-the-handoff" })).status).toBe(400);
+    expect((await call("/api/v2/auth/google/native/finish", { state: started.state })).status).toBe(400);
     const finished = await call("/api/v2/auth/google/native/finish", { state: started.state, handoff });
     expect(finished.status).toBe(200);
     expect(await finished.json()).toMatchObject({ session: { state: "authenticated" }, account: { providers: ["google"] }, native_token: expect.any(String) });
@@ -288,8 +289,9 @@ describe("Google sign-in", () => {
       const google = await fakeGoogle({ sub, email: "jordan.lee@gmail.com", email_verified: true });
       const started = await (await call("/api/v2/auth/google/native/start")).json() as { url: string; state: string };
       google.setNonce(new URL(started.url).searchParams.get("nonce")!);
-      await worker.fetch(new Request(`${ORIGIN}/api/v2/auth/google/callback?state=${started.state}&code=good-code`), env, ctx);
-      return call("/api/v2/auth/google/native/finish", { state: started.state });
+      const callback = await worker.fetch(new Request(`${ORIGIN}/api/v2/auth/google/callback?state=${started.state}&code=good-code`), env, ctx);
+      const handoff = new URL(callback.headers.get("location")!).searchParams.get("handoff");
+      return call("/api/v2/auth/google/native/finish", { state: started.state, handoff });
     };
 
     const connected = await connect("google-mine");
