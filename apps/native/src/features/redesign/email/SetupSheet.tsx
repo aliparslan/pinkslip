@@ -135,7 +135,7 @@ function SetupSteps({ start, inbox, prefs, actions }: { start: SetupStart; inbox
       return <SheetStep id="code-waiting" inner>
         <View style={styles.lead}>
           <SheetHeader title="Waiting for Gmail's code" />
-          <Text tone="ink-2">Gmail sends it to your address in a minute or so. It shows up here.</Text>
+          <Text tone="ink-2">Gmail sends it to your address. It shows up here.</Text>
         </View>
         <Waiting />
         <Button variant="text" fullWidth onPress={sheet.close}>Finish later</Button>

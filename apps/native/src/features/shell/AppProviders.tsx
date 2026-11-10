@@ -1,17 +1,18 @@
-import { createAppQueryClient, DataProvider, queryKeys, useOwnerChangeCleanup, useSession } from "@pinkslip/data";
+import { createAppQueryClient, DataProvider, queryKeys, useOwnerChangeCleanup, useSession, type Session } from "@pinkslip/data";
 import { focusManager, useQueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import * as Notifications from "expo-notifications";
 import { router, SplashScreen } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
-import { toast, ToastHost } from "../../kit";
+import { toast, ToastHost, UNDO_TOAST_DURATION } from "../../kit";
 import { appPathFor, fromAlert, homeTabOf, inHomeTab } from "../../platform/links";
 import { persistOptions } from "../../platform/persistence";
 import { ASK_APPLY, ASK_DISMISS, isAlertButton, notificationTarget, refreshDevicePush } from "../../platform/push";
-import { initializeSession, type ApiClient } from "../../platform/session";
+import { initializeSession, onSessionRejected, type ApiClient } from "../../platform/session";
 import { watchAppearance } from "../../theme/appearance";
 import { loadUiFonts } from "../../ui/fonts";
+import { openSignIn } from "../account/sign-in-request";
 import { SignInHost } from "../account/SignInSheet";
 import { LaunchFailure } from "../redesign/errors";
 import { rememberOwnerPhone } from "../redesign/flag";
@@ -75,6 +76,16 @@ function AppEffects({ api }: { api: ApiClient }) {
     return () => subscription.remove();
   }, []);
   const queryClient = useQueryClient();
+  // The server ended this session (a new password set somewhere else, say)
+  // and the app is a guest again. Without a word, someone signed in just
+  // found their lists empty; the session reloads, which clears the rest.
+  useEffect(() => onSessionRejected(() => {
+    const wasSignedIn = queryClient.getQueryData<Session>(queryKeys.session())?.state === "authenticated";
+    void queryClient.invalidateQueries({ queryKey: queryKeys.session() });
+    if (wasSignedIn) {
+      toast.show({ message: "You've been logged out", duration: UNDO_TOAST_DURATION, dedupeKey: "signed-out", action: { label: "Sign in", run: () => openSignIn() } });
+    }
+  }), [queryClient]);
   useEffect(() => {
     const handled = new Set<string>();
     // A tapped alert opens its job (or the feed) and records the open.

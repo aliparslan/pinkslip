@@ -117,6 +117,20 @@ describe("native application session", () => {
     await flow.result;
   });
 
+  test("fills nothing on a plain http page, even from Fill again", async () => {
+    const flow = harness();
+    try {
+      flow.load("http://jobs.test/1");
+      await until(() => flow.statuses.includes("This page isn't secure. Fill it by hand."));
+      flow.refill();
+      await new Promise((resolve) => setTimeout(resolve, 2_300));
+      expect([flow.reads, flow.plans, flow.fills]).toEqual([0, 0, 0]);
+      flow.load("https://jobs.test/1");
+      await until(() => flow.fills === 1);
+    } finally { flow.close(); }
+    await flow.result;
+  });
+
   test("stays on the first page until Workday's pages are switched on", async () => {
     const flow = harness({ url: WORKDAY, step: "current step 1 of 2" });
     try {

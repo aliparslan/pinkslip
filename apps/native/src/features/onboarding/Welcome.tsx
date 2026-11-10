@@ -85,7 +85,7 @@ export function Welcome({ saves, counts, onDone, onAccount }: WelcomeProps) {
   const pool = useQuery({
     queryKey: ["onboarding", "pool", saves],
     queryFn: async () => {
-      if (saves && saved) await update.mutateAsync({ search_profile: everything(saved) });
+      if (saves && saved) await update.mutateAsync({ search_profile: everything(saved, new Date()) });
       const slices = await Promise.all(STAGES_IN_ORDER.map((stages) => api.jobs.list({ stages, limit: POOL_PER_STAGE })));
       return joinPool(slices.map((slice) => slice.jobs));
     },

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_SEARCH_PROFILE, ONBOARDING_VERSION, type SearchProfile } from "../shared/search-profile";
+import { DEFAULT_SEARCH_PROFILE, effectiveTargetStages, normalizeSearchProfile, ONBOARDING_VERSION, type SearchProfile } from "../shared/search-profile";
 import {
   answer, answeredSearch, canContinue, everything, fitsAnswers, flipRemote, jobStages, joinPool, pickPlace, pickRole, pickStage, unanswered,
 } from "../apps/native/src/features/onboarding/answers";
@@ -17,6 +17,15 @@ describe("the pool behind the questions", () => {
       [job("undated", null, "2026-10-12T00:00:00.000Z")],
     ]);
     expect(pool.map((row) => row.id)).toEqual(["mid-new", "undated", "both", "grad-older"]);
+  });
+
+  test("orders by the moment posted, whatever time zone a board writes it in", () => {
+    const pool = joinPool([
+      [job("eastern-evening", "2026-10-18T20:00:00-04:00")],
+      [job("utc-night", "2026-10-18T23:00:00.000Z")],
+    ]);
+    // 20:00 at -04:00 is midnight UTC, an hour after 23:00 UTC.
+    expect(pool.map((row) => row.id)).toEqual(["eastern-evening", "utc-night"]);
   });
 });
 
@@ -96,8 +105,13 @@ describe("onboarding's three questions", () => {
   });
 
   test("while the hook plays the search widens to everything", () => {
-    const wide = everything(profile({ target_levels: ["new_grad"], roles: ["backend"], location_ids: ["austin"] }));
+    const now = new Date("2026-11-09T12:00:00.000Z");
+    const wide = everything(profile({ target_levels: ["new_grad"], roles: ["backend"], location_ids: ["austin"] }), now);
     expect(wide.target_levels.length).toBe(4);
+    // Marked answered, or the server would hold internships back from the preview.
+    expect(wide.onboarding_version).toBe(ONBOARDING_VERSION);
+    expect(wide.onboarding_completed_at).toBe(now.toISOString());
+    expect(effectiveTargetStages(normalizeSearchProfile(wide))).toContain("internship");
     expect(wide.roles).toContain("data_engineering");
     expect(wide.location_ids).toEqual([]);
     expect(wide.work_modes).toContain("remote");

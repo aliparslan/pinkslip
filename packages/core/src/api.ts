@@ -167,6 +167,10 @@ export interface NotificationSettingsChange {
   };
 }
 
+/** For an answer that failed without saying why (a gateway's 502, say).
+ * People may read this in a toast; the status is on the error for code. */
+const UNEXPLAINED = "Something went wrong. Try again.";
+
 export class ApiError extends Error {
   status: number;
   code?: string;
@@ -206,7 +210,7 @@ async function requestFor<T>(
         continue;
       }
       if (controller.signal.aborted) {
-        throw new ApiError("This is taking longer than expected. Please try again.", 408, "request_timeout");
+        throw new ApiError("This is taking longer than expected. Try again.", 408, "request_timeout");
       }
       throw error;
     } finally {
@@ -223,7 +227,7 @@ async function requestFor<T>(
 
   if (!res) {
     const productName = context.config.client === "ios" ? "Pinkslip" : "pinkslip";
-    throw new ApiError(`Could not reach ${productName}. Please try again.`, 503, "network_unavailable");
+    throw new ApiError(`Couldn't reach ${productName}. Try again.`, 503, "network_unavailable");
   }
 
   if (res.status === 204) {
@@ -244,7 +248,7 @@ async function requestFor<T>(
 
   if (!res.ok) {
     const data = typeof payload === "object" && payload !== null ? payload as Record<string, unknown> : undefined;
-    const message = typeof data?.error === "string" ? data.error : `API error: ${res.status}`;
+    const message = typeof data?.error === "string" ? data.error : UNEXPLAINED;
     const code = typeof data?.code === "string" ? data.code : undefined;
     throw new ApiError(message, res.status, code, payload);
   }
@@ -260,7 +264,7 @@ async function requestBlobFor(context: ClientContext, path: string, timeoutMs = 
     response = await fetchApiFor(context, path, { signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted) {
-      throw new ApiError("This is taking longer than expected. Please try again.", 408, "request_timeout");
+      throw new ApiError("This is taking longer than expected. Try again.", 408, "request_timeout");
     }
     throw error;
   } finally {
@@ -269,7 +273,7 @@ async function requestBlobFor(context: ClientContext, path: string, timeoutMs = 
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { error?: unknown; code?: unknown } | null;
     throw new ApiError(
-      typeof payload?.error === "string" ? payload.error : `API error: ${response.status}`,
+      typeof payload?.error === "string" ? payload.error : UNEXPLAINED,
       response.status,
       typeof payload?.code === "string" ? payload.code : undefined,
       payload,
@@ -893,16 +897,6 @@ function createEndpoints(context: ClientContext) {
       request<MeResponse>("/auth/apple/exchange", {
         method: "POST",
         body: JSON.stringify(data),
-      }),
-    startEmailLogin: (email: string) =>
-      request<{ ok: boolean; expires_at: string }>("/auth/email/start", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-      }),
-    verifyEmailToken: (token: string) =>
-      request<MeResponse>("/auth/email/verify", {
-        method: "POST",
-        body: JSON.stringify({ token }),
       }),
     /** Mails a 6-digit code: sign in without a password, sign up, or reset one. */
     startEmailCode: (email: string) =>

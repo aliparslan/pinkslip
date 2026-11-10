@@ -59,27 +59,48 @@ describe("native session lifecycle", () => {
     const guest = deferred<Response>();
     let mintCalls = 0;
     const stored: Array<string | null> = [];
+    let rejections = 0;
     const controller = createSessionController({ baseUrl, readToken: async () => "expired", writeToken: async (token) => { stored.push(token); },
+      onRejected: () => { rejections++; },
       fetch: async (input, init) => {
         const path = new URL(String(input)).pathname;
         if (path.endsWith("/native/session")) { mintCalls++; return guest.promise; }
-        if (path.endsWith("/auth/email/verify")) return Response.json({ native_token: "signed-in" });
+        if (path.endsWith("/auth/email/code/verify")) return Response.json({ native_token: "signed-in" });
         const token = new Headers(init?.headers).get("authorization");
         return token === "Bearer expired" ? Response.json({ code: "invalid_token" }, { status: 401 }) : Response.json({ bearer: token });
       } });
     const api = await controller.initialize();
     const reads = Promise.all([api.me.get(), api.me.get()]);
     await until(() => mintCalls > 0);
-    await api.auth.verifyEmailToken("link");
+    await api.auth.verifyEmailCode({ email: "person@example.com", code: "123456" });
     guest.resolve(Response.json({ token: "obsolete-guest" }));
     expect<unknown>(await reads).toEqual([{ bearer: "Bearer signed-in" }, { bearer: "Bearer signed-in" }]);
     expect(mintCalls).toBe(1); expect(stored).toEqual([null, "signed-in"]);
+    // The app ended up signed in, so there's no sign-out to tell anyone about.
+    expect(rejections).toBe(0);
+  });
+  test("a session the server ended is reported once, after a guest one replaces it", async () => {
+    let rejections = 0;
+    const controller = createSessionController({ baseUrl, readToken: async () => "ended", writeToken: async () => undefined,
+      onRejected: () => { rejections++; },
+      fetch: async (input, init) => {
+        if (new URL(String(input)).pathname.endsWith("/native/session")) return Response.json({ token: "guest" });
+        const token = new Headers(init?.headers).get("authorization");
+        return token === "Bearer ended" ? Response.json({ code: "invalid_token" }, { status: 401 }) : Response.json({ bearer: token });
+      } });
+    const api = await controller.initialize();
+    expect(rejections).toBe(0);
+    expect<unknown>(await Promise.all([api.me.get(), api.me.get(), api.me.get()])).toEqual(Array(3).fill({ bearer: "Bearer guest" }));
+    expect(rejections).toBe(1);
+    await api.me.get();
+    expect(rejections).toBe(1);
   });
 });
 
 test("universal links and app links map only supported trusted URLs", () => {
   for (const url of ["https://pinkslip.work/jobs/abc", "pinkslip://jobs/abc", "pinkslip:///jobs/abc"]) expect(appPathFor(url)).toBe("/jobs/abc");
-  expect(appPathFor("https://pinkslip.work/auth/email/verify?token=abc")).toBe("/auth/email/verify?token=abc");
+  // Sign-in links are gone; an old one opens nothing in the app.
+  expect(appPathFor("https://pinkslip.work/auth/email/verify?token=abc")).toBeNull();
   expect(appPathFor("/library?view=applied")).toBe("/library?view=applied");
   // An event reminder (N19) opens the event's page.
   expect(appPathFor("/events/ev-1")).toBe("/events/ev-1");

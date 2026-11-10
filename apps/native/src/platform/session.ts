@@ -9,11 +9,21 @@ export type { ApiClient };
 
 const TOKEN_KEY = "pinkslip-native-token";
 
+const rejections = new Set<() => void>();
+
+/** Runs when the server has ended this phone's session and the app is a
+ * guest again, so whatever shows the account can say so and reload. */
+export function onSessionRejected(listener: () => void): () => void {
+  rejections.add(listener);
+  return () => { rejections.delete(listener); };
+}
+
 const controller = createSessionController({
   baseUrl: API_URL,
   readToken: () => SecureStore.getItemAsync(TOKEN_KEY),
   writeToken: (token) => token ? SecureStore.setItemAsync(TOKEN_KEY, token) : SecureStore.deleteItemAsync(TOKEN_KEY),
   freshInstall: !appRanBefore,
+  onRejected: () => { for (const listener of rejections) listener(); },
 });
 export const currentSessionToken = controller.currentToken;
 

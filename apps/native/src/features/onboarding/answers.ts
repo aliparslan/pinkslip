@@ -71,11 +71,15 @@ export function answeredSearch(saved: Profile, draft: Profile, now: Date): Profi
 
 /** The search widened to everything (every stage and role, anywhere, any way
  * of working). It's saved while the hook plays, so the jobs fetched for the
- * feed behind the questions hold every kind they can narrow to. */
-export function everything(profile: Profile): Profile {
+ * feed behind the questions hold every kind they can narrow to. It's marked
+ * as answered too: the server holds internships back from a search nobody
+ * has confirmed (`effectiveTargetStages`), which left Internships with
+ * nothing to show. The real answers replace it when the questions end. */
+export function everything(profile: Profile, now: Date): Profile {
   return {
     ...profile, target_levels: CAREER_STAGE_OPTIONS.map((option) => option.id), roles: [...allRoles], primary_role: allRoles[0]!,
     location_ids: [], relocation_willing: false, work_modes: ["remote", "hybrid", "onsite"],
+    onboarding_version: ONBOARDING_VERSION, onboarding_completed_at: now.toISOString(),
   };
 }
 
@@ -110,7 +114,10 @@ export function joinPool<Job extends { id: string; posted_at: string | null; fir
 ): Job[] {
   const jobs = new Map<string, Job>();
   for (const slice of slices) for (const job of slice) jobs.set(job.id, job);
-  return [...jobs.values()].sort((a, b) => (b.posted_at ?? b.first_seen_at).localeCompare(a.posted_at ?? a.first_seen_at));
+  // Boards write dates in their own time zones ("-04:00", "Z"), so they're
+  // compared as moments, not as text.
+  const posted = (job: Job) => Date.parse(job.posted_at ?? job.first_seen_at) || 0;
+  return [...jobs.values()].sort((a, b) => posted(b) - posted(a));
 }
 
 /** Whether a job fits the answers so far, for the feed behind the questions,

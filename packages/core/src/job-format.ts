@@ -24,8 +24,13 @@ function titleCaseShouting(value: string): string {
   return value.toLowerCase().replace(/(^|[\s.'-])([a-z])/g, (_match, gap: string, letter: string) => gap + letter.toUpperCase());
 }
 
+/** What a board writes when it has no place to give. ("NA" alone can mean
+ * North America, so it stays.) */
+const NO_PLACE = /^(?:n\/a|none|unknown|tb[da]|not (?:specified|applicable|available)|-+)$/i;
+
 function normalizeLocationPart(value: string): string {
   let part = normalizeText(value);
+  if (NO_PLACE.test(part)) return "";
   // Country first ("US, WA, Seattle"), as Amazon writes it.
   const countryFirst = part.match(/^(?:US|USA),\s*([A-Za-z]{2}),\s*(.+)$/);
   if (countryFirst) part = `${countryFirst[2]}, ${countryFirst[1].toUpperCase()}`;

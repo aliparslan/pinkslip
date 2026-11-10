@@ -89,6 +89,9 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
     let step: string | null = null;
     /** On Google's or LinkedIn's own sign-in page, which is never filled. */
     let signingIn = false;
+    /** On a plain http page, where what's typed can be read on its way.
+     * Nothing is filled there, on its own or from Fill again. */
+    let unprotected = false;
     // Save and Continue, the Terms box and Submit stay the person's on Workday.
     const autoSubmit = options.autoSubmit && !isWorkdayUrl(options.url);
     const moreToCome = () => { const at = step?.match(/(\d+) of (\d+)/); return at ? Number(at[1]) < Number(at[2]) : false; };
@@ -150,7 +153,7 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
     };
     const watch = async () => {
       if (closed) return;
-      if (!running && !submitted && loaded && !signingIn) {
+      if (!running && !submitted && loaded && !signingIn && !unprotected) {
         const expected = revision;
         try {
           const { submitted: done, controls, step: showing } = await read();
@@ -178,6 +181,7 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
     const pass = async () => {
       if (closed || !loaded || submitted) return;
       if (signingIn) { await browser.setStatus("Sign in to start filling").catch(() => undefined); return; }
+      if (unprotected) { await browser.setStatus("This page isn't secure. Fill it by hand.").catch(() => undefined); return; }
       if (running) { again = true; return; }
       running = true;
       const expected = revision;
@@ -257,6 +261,7 @@ export function runAutoApply(api: Pick<ApiClient, "apply">, browser: Application
         if (closed) return;
         loaded = true; revision += 1; page = where(url); watched = new Map(); learned.clear(); byPinkslip = new Set(); formShown = false;
         signingIn = isSignInProvider(url);
+        unprotected = /^http:\/\//i.test(url);
         void pass();
       },
       // Fill again (owner, 2026-11-04: it did nothing). The form is on

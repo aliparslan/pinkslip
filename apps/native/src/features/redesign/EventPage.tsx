@@ -37,7 +37,7 @@ export const EVENT_SAMPLE: EventView[] = [
     about: "An evening with engineers and product people from across payments.", points: ["Short talks", "Time to meet the team"],
   },
   {
-    id: "review", company: "Stripe", domain: "stripe.com", name: "Résumé review with engineers", month: "NOV", day: "6", when: "Thursday", time: "12:00 PM",
+    id: "review", company: "Stripe", domain: "stripe.com", name: "Resume review with engineers", month: "NOV", day: "6", when: "Thursday", time: "12:00 PM",
     facts: "Online · Sign-up closes Nov 1", date: "Thu, Nov 6", hours: "12:00–1:00 PM", where: "Online", signupsClose: "Nov 1", forWhom: "New grads",
     stub: "Hosted by university recruiting · via stripe.com", url: "https://stripe.com",
     about: "Twenty minutes one on one with an engineer, on your résumé.", points: ["Bring a PDF", "Questions welcome"],

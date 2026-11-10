@@ -383,7 +383,8 @@ export function ApplicationBrowser({ request, onClose, onSubmitted, onConfirmApp
         <View style={styles.title}>
           <Text role="subhead" weight="medium" lines={1}>{request?.company ? `Apply at ${request.company}` : "Apply"}</Text>
           {hostOf(page) ? <View style={styles.host}>
-            <Icon name="secure" size={11} tone="ink-3" />
+            {/* The lock is a claim about the connection, so only https gets it. */}
+            {page?.startsWith("https://") ? <Icon name="secure" size={11} tone="ink-3" /> : null}
             <Text role="footnote" tone="ink-3" lines={1}>{hostOf(page)}</Text>
           </View> : null}
         </View>

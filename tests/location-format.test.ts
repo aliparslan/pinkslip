@@ -28,6 +28,11 @@ describe("formatJobLocation", () => {
   it("passes through empty locations", () => {
     expect(formatJobLocation(null)).toBeNull();
     expect(formatJobLocation("  ")).toBeNull();
+    // A board with no place to give writes one of these (seen in search, Nov 9: "Stripe · N/A").
+    expect(formatJobLocation("N/A")).toBeNull();
+    expect(formatJobLocation("n/a | Seattle, WA")).toBe("Seattle, WA");
+    expect(formatJobLocation("TBD")).toBeNull();
+    expect(formatJobLocation("Remote - NA")).toBe("Remote - NA");
   });
 });
 

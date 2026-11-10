@@ -12,6 +12,9 @@ export function createSessionController(options: {
    * meant for someone new; a fresh install forgets the kept token and starts
    * as a guest instead (owner, 2026-11-06, as most apps do). */
   freshInstall?: boolean;
+  /** The server no longer accepts this phone's session (it was signed out
+   * from somewhere else, say), and a guest one has taken its place. */
+  onRejected?(): void;
 }) {
   let token: string | null = null;
   let revision = 0;
@@ -20,6 +23,7 @@ export function createSessionController(options: {
   let initializing: Promise<typeof api> | null = null;
   let recovering: Promise<void> | null = null;
   let minting: Promise<void> | null = null;
+  let guestToken: string | null = null;
   let writes: Promise<void> = Promise.resolve();
   const store = async (next: string | null) => {
     token = next;
@@ -33,7 +37,9 @@ export function createSessionController(options: {
     const expected = revision;
     minting = api.native.startSession().then(async (session) => {
       // A sign-in that finished while this guest request was running wins.
-      if (revision === expected) await store(session.token);
+      if (revision !== expected) return;
+      await store(session.token);
+      guestToken = session.token;
     }).finally(() => { minting = null; });
     return minting;
   };
@@ -46,7 +52,10 @@ export function createSessionController(options: {
       if (recovering) return recovering;
       const expected = revision + 1;
       recovering = store(null).then(async () => {
-        if (revision === expected) await guest();
+        if (revision !== expected) return;
+        await guest();
+        // Not when a sign-in finished meanwhile: that session is the one in use.
+        if (token && token === guestToken) options.onRejected?.();
       }).finally(() => { recovering = null; });
       return recovering;
     },

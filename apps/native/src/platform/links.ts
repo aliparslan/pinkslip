@@ -18,7 +18,6 @@ export function appPathFor(input: string): string | null {
   const path = url.protocol === "pinkslip:" ? (url.host ? `/${url.host}${url.pathname}` : url.pathname).replace(/\/$/, "") || "/" : url.pathname;
   const job = /^\/jobs\/([^/]+)\/?$/.exec(path);
   if (job) return `/jobs/${job[1]}${url.search}`;
-  if (path === "/auth/email/verify") return `/auth/email/verify${url.search}`;
   if (path === "/" || path === "") return "/";
   // `?answer=sends` opens the stopped sends' sheet.
   if (path === "/today") return `/today${url.search}`;

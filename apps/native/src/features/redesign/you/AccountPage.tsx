@@ -32,11 +32,11 @@ export function AccountView({ name, email, provider, actions }: AccountViewProps
       },
     },
   ], "plain-text", name);
-  const logOut = () => Alert.alert("Log out?", "You'll be signed out on this iPhone. Your account stays saved.", [
+  const logOut = () => Alert.alert("Log out?", "You'll be logged out on this iPhone. Your account stays saved.", [
     { text: "Cancel", style: "cancel" },
-    { text: "Log out", onPress: () => void actions.logOut().catch(() => toast.error("Couldn't sign out. Try again.")) },
+    { text: "Log out", onPress: () => void actions.logOut().catch(() => toast.error("Couldn't log out. Try again.")) },
   ]);
-  const remove = () => Alert.alert("Delete your account?", "This permanently deletes your account, saved jobs, applications and resume. It can't be undone.", [
+  const remove = () => Alert.alert("Delete your account?", "This permanently deletes your search, resume, answers and Tracker. It can't be undone.", [
     { text: "Cancel", style: "cancel" },
     {
       text: "Delete account", style: "destructive", onPress: () => void actions.deleteAccount().then(({ appleRevokeRequired }) => toast.success(appleRevokeRequired
@@ -45,7 +45,7 @@ export function AccountView({ name, email, provider, actions }: AccountViewProps
     },
   ]);
   const signedIn = provider === "apple" ? "Signed in with Apple" : provider === "google" ? "Signed in with Google"
-    : provider === "email" ? "Signed in with an email link" : undefined;
+    : provider === "email" ? "Signed in with email" : undefined;
   return <YouPage title="Account">
     <ListGroup surface="fill">
       <ListItem title="Name" value={name || "Add"} accessory="chevron" onPress={rename} />

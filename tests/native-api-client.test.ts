@@ -44,7 +44,7 @@ describe("native API token rotation", () => {
     expect(requestedHeaders.get("x-pinkslip-client")).toBe("ios");
   });
 
-  it("does not replace a magic-link token when a stale guest request is rejected", async () => {
+  it("does not replace a sign-in's token when a stale guest request is rejected", async () => {
     testGlobal.window = globalThis as unknown as Window & typeof globalThis;
 
     let accessToken = "guest-token";
@@ -89,7 +89,7 @@ describe("native API token rotation", () => {
         return Response.json({ me: {}, preferences: {} });
       }
 
-      if (url.endsWith("/auth/email/verify")) {
+      if (url.endsWith("/auth/email/code/verify")) {
         return Response.json({
           user: { id: "signed-in-user", name: "" },
           session: { state: "authenticated" },
@@ -104,7 +104,7 @@ describe("native API token rotation", () => {
 
     const staleBootstrap = api.bootstrap.get();
     await staleRequestStarted;
-    await api.auth.verifyEmailToken("magic-link-token");
+    await api.auth.verifyEmailCode({ email: "person@example.com", code: "123456" });
     releaseStaleRequest();
     await staleBootstrap;
 
