@@ -82,8 +82,11 @@ export function Welcome({ saves, counts, onDone, onAccount }: WelcomeProps) {
   // (when this run saves) and its newest jobs are fetched, so every tap on a
   // chip narrows the feed at once, with no wait.
   const ready = saved !== null;
+  // Each run fetches its own: jobs kept from a run that was quit halfway would
+  // skip the save above and leave the feed on whatever that run had.
+  const [run] = useState(() => Date.now());
   const pool = useQuery({
-    queryKey: ["onboarding", "pool", saves],
+    queryKey: ["onboarding", "pool", saves, run],
     queryFn: async () => {
       if (saves && saved) await update.mutateAsync({ search_profile: everything(saved, new Date()) });
       const slices = await Promise.all(STAGES_IN_ORDER.map((stages) => api.jobs.list({ stages, limit: POOL_PER_STAGE })));

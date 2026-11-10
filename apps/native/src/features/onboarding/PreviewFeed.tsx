@@ -1,18 +1,17 @@
 import type { Job } from "@pinkslip/core/api";
 import type { Profile } from "@pinkslip/core/profile-fields";
 import { useEffect, useMemo } from "react";
-import { ScrollView, View, useWindowDimensions } from "react-native";
+import { View, useWindowDimensions } from "react-native";
 import Animated, {
   LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring, withTiming, type EntryExitAnimationFunction,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { Chip, IconButton, JobRow, RowPlaceholders, SearchField, SectionHeader, Text, LastInSection } from "../../ui";
+import { FilterChips, IconButton, JobRow, RowPlaceholders, SearchField, SectionHeader, Text, LastInSection, type FilterChipSpec } from "../../ui";
 import { motion, spring } from "../../ui/motion";
 import { logoUri } from "../jobs/CompanyLogo";
 import { feedSections, plainText, rowAge, rowFacts } from "../redesign/job-facts";
-import { stageName, STAGES_IN_ORDER } from "../redesign/search-draft";
 import { fitsAnswers } from "./answers";
 
 const { feed: FEED, leave: LEAVE } = motion.onboarding;
@@ -49,6 +48,14 @@ const rowOut: EntryExitAnimationFunction = () => {
 
 /** The rest move to their new places on the same spring. */
 const moved = LinearTransition.springify().mass(ROW_SPRING.mass).stiffness(ROW_SPRING.stiffness).damping(ROW_SPRING.damping);
+
+/** Jobs' own row at rest. Level is there once there's more than one stage to
+ * choose between, as it is on Jobs. */
+const restingChips = (stages: number): FilterChipSpec[] => [
+  ...(stages > 1 ? [{ id: "level", label: "Level", selected: false }] : []),
+  { id: "location", label: "Location", selected: false },
+  { id: "pay", label: "Pay", selected: false },
+];
 
 type Item = { kind: "section"; key: string; title: string; count?: number } | { kind: "job"; key: string; job: Job };
 
@@ -117,7 +124,6 @@ export function PreviewFeed({ jobs, draft, answered, whereAsked, arriving, final
     return listed(jobs.filter((job) => fitsAnswers(job, draft, whereAsked)), false);
   }, [final, jobs, answered, draft, whereAsked]);
 
-  const stages = STAGES_IN_ORDER.filter((stage) => draft.target_levels.includes(stage));
   let rows = 0;
   return <Animated.View style={[styles.root, { paddingTop: insets.top }, slide]} pointerEvents="none">
     <View style={styles.header}>
@@ -131,11 +137,7 @@ export function PreviewFeed({ jobs, draft, answered, whereAsked, arriving, final
         <IconButton icon="editSearch" label="Your search" onPress={() => undefined} />
       </View>
     </View>
-    <ScrollView horizontal scrollEnabled={false} showsHorizontalScrollIndicator={false} style={styles.strip} contentContainerStyle={styles.chips}>
-      <Chip label="Remote" />
-      <Chip label="$100K+" />
-      {stages.length > 1 ? stages.map((stage) => <Chip key={stage} label={stageName(stage)} />) : null}
-    </ScrollView>
+    <FilterChips chips={restingChips(draft.target_levels.length)} />
     {items === null ? <RowPlaceholders />
       : items.length === 0 ? <View style={styles.none}><Text role="subhead" tone="ink-3">Nothing fits these yet.</Text></View>
       : items.map((item, index) => {
@@ -159,8 +161,5 @@ const styles = StyleSheet.create((theme) => ({
   nav: { height: theme.ui.size.iconButton },
   row: { flexDirection: "row", alignItems: "center", gap: theme.ui.space["2"] },
   flex: { flex: 1 },
-  // A horizontal ScrollView grows and shrinks with its column; this one keeps its own height.
-  strip: { flexGrow: 0, flexShrink: 0 },
-  chips: { gap: theme.ui.space["2"], paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["2"], paddingBottom: theme.ui.space["2"] },
   none: { paddingHorizontal: theme.ui.size.gutter, paddingTop: theme.ui.space["4"] },
 }));

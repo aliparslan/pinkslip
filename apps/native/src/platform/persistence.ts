@@ -20,7 +20,8 @@ export const persistOptions: Omit<PersistQueryClientOptions, "queryClient"> = {
   maxAge: 7 * 24 * 60 * 60 * 1000,
   buster: Constants.expoConfig?.version ?? "dev",
   dehydrateOptions: {
-    // Only finished, successful reads; the session is always re-checked.
-    shouldDehydrateQuery: (query) => query.state.status === "success" && query.queryKey[0] !== "session",
+    // Only finished, successful reads. The session is always re-checked, and
+    // onboarding's jobs are only for that run.
+    shouldDehydrateQuery: (query) => query.state.status === "success" && !["session", "onboarding"].includes(String(query.queryKey[0])),
   },
 };
