@@ -188,7 +188,9 @@ const styles = StyleSheet.create((theme) => ({
   action: { height: theme.ui.size.chip, justifyContent: "center", paddingHorizontal: theme.ui.space["2"] },
   actionPressed: { opacity: 0.5 },
   root: {
-    height: theme.ui.size.chip,
+    // A floor, not a fixed height, so the label isn't cut at large text sizes.
+    minHeight: theme.ui.size.chip,
+    paddingVertical: theme.ui.space["1"],
     flexDirection: "row",
     alignItems: "center",
     gap: 6,

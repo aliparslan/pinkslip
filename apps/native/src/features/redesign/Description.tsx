@@ -15,11 +15,14 @@ function Runs({ runs, loaded }: { runs: DescriptionRun[]; loaded: boolean }) {
  * 2026-10-24). iOS selects in a text view: `selectable` text only offers to
  * copy all of it. A text view can't tell which run a tap landed on, so a
  * paragraph with a link stays text, and its links open. */
+/** The app's cap for reading text, so a long word still fits the line. */
+const TEXT_CAP = 2;
+
 function Paragraph({ runs, loaded, style }: { runs: DescriptionRun[]; loaded: boolean; style: StyleProp<TextStyle> }) {
   const { theme } = useUnistyles();
   const children: ReactNode = <Runs runs={runs} loaded={loaded} />;
-  if (runs.some((run) => run.href)) return <RNText selectable style={style}>{children}</RNText>;
-  return <TextInput editable={false} multiline scrollEnabled={false} selectionColor={theme.ui.color.accent}
+  if (runs.some((run) => run.href)) return <RNText selectable style={style} maxFontSizeMultiplier={TEXT_CAP}>{children}</RNText>;
+  return <TextInput editable={false} multiline scrollEnabled={false} maxFontSizeMultiplier={TEXT_CAP} selectionColor={theme.ui.color.accent}
     style={[style, styles.selectable]}>{children}</TextInput>;
 }
 
@@ -32,7 +35,7 @@ export function Description({ blocks }: { blocks: DescriptionBlock[] }) {
     {blocks.map((block, index) => {
       if (block.kind === "heading") {
         // The first heading leads the section, so it takes no space above it.
-        return <RNText key={index} accessibilityRole="header" lineBreakStrategyIOS="standard"
+        return <RNText key={index} accessibilityRole="header" lineBreakStrategyIOS="standard" maxFontSizeMultiplier={TEXT_CAP}
           style={[styles.heading, index === 0 && styles.leading, loaded ? styles.boldFace : styles.boldWeight]}>
           <Runs runs={block.runs} loaded={loaded} />
         </RNText>;
@@ -40,7 +43,7 @@ export function Description({ blocks }: { blocks: DescriptionBlock[] }) {
       if (block.kind === "paragraph") return <Paragraph key={index} runs={block.runs} loaded={loaded} style={[styles.paragraph, text]} />;
       return <View key={index} style={styles.list}>
         {block.items.map((item, itemIndex) => <View key={itemIndex} style={styles.item}>
-          <RNText style={[styles.marker, text]}>{block.ordered ? `${itemIndex + 1}.` : "•"}</RNText>
+          <RNText style={[styles.marker, text]} maxFontSizeMultiplier={TEXT_CAP}>{block.ordered ? `${itemIndex + 1}.` : "•"}</RNText>
           <Paragraph runs={item} loaded={loaded} style={[styles.paragraph, text, styles.itemText]} />
         </View>)}
       </View>;
