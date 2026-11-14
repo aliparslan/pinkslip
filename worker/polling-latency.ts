@@ -1,5 +1,11 @@
 import { hasTable } from "./db-schema";
-import { queuedPollingTiers, SOURCE_POLL_INTERVAL_MS, type PollTier } from "./poll-schedule";
+import {
+  queuedPollingTiers,
+  SOURCE_POLL_INTERVAL_MS,
+  YC_POLL_INTERVAL_MS,
+  YC_SOURCE_TYPE,
+  type PollTier,
+} from "./poll-schedule";
 import type { Env } from "./types";
 
 // Measures the two halves of posting-to-alert time per poll tier:
@@ -111,13 +117,20 @@ export async function loadPollingLatency(
     const interval = SOURCE_POLL_INTERVAL_MS[tier];
     const freshness = await db.prepare(
       `SELECT COUNT(*) AS sources,
-              SUM(CASE WHEN last_polled_at IS NOT NULL AND last_polled_at < ? THEN 1 ELSE 0 END) AS overdue
+              SUM(CASE WHEN last_polled_at IS NOT NULL AND last_polled_at < (
+                CASE WHEN COALESCE(source_type, ats_type) = ? THEN ? ELSE ? END
+              ) THEN 1 ELSE 0 END) AS overdue
        FROM companies
        WHERE enabled = 1
          AND COALESCE(source_type, ats_type) != 'custom'
          AND COALESCE(poll_tier, 1) = ?
          AND quarantined_at IS NULL`
-    ).bind(new Date(now.getTime() - interval * 2).toISOString(), tier)
+    ).bind(
+      YC_SOURCE_TYPE,
+      new Date(now.getTime() - YC_POLL_INTERVAL_MS * 2).toISOString(),
+      new Date(now.getTime() - interval * 2).toISOString(),
+      tier
+    )
       .first<{ sources: number; overdue: number | null }>();
     const pollGap = summarize(gaps.get(tier) ?? []);
     const alertDelay = summarize(delays.get(tier) ?? []);

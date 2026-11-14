@@ -1,6 +1,13 @@
 import { notifyAdmins } from "./admin-alerts";
 import { hasTable } from "./db-schema";
-import { queuedPollingTiers, SOURCE_POLL_INTERVAL_MS, type PollTier } from "./poll-schedule";
+import {
+  queuedPollingTiers,
+  SOURCE_POLL_INTERVAL_MS,
+  YC_POLL_INTERVAL_MS,
+  YC_SOURCE_TYPE,
+  ycPausedUntil,
+  type PollTier,
+} from "./poll-schedule";
 import type { NotificationPayload } from "./push";
 import type { Env } from "./types";
 
@@ -46,6 +53,9 @@ export async function checkPollingHealth(
   now: Date
 ): Promise<PollingHealth> {
   const overdue: OverdueTier[] = [];
+  // YC is held back on purpose while it rate limits us; that isn't a stall.
+  const ycPaused = (await ycPausedUntil(db, now)) !== null;
+  const ycCutoff = new Date(now.getTime() - YC_POLL_INTERVAL_MS * OVERDUE_CADENCES).toISOString();
   for (const tier of queuedTiers) {
     const cutoff = new Date(
       now.getTime() - SOURCE_POLL_INTERVAL_MS[tier] * OVERDUE_CADENCES
@@ -60,9 +70,19 @@ export async function checkPollingHealth(
          AND COALESCE(poll_tier, 1) = ?
          AND quarantined_at IS NULL
          AND last_polled_at IS NOT NULL
-         AND last_polled_at < ?
+         AND (
+           (COALESCE(source_type, ats_type) != ? AND last_polled_at < ?)
+           OR (COALESCE(source_type, ats_type) = ? AND ? = 0 AND last_polled_at < ?)
+         )
        ORDER BY last_polled_at ASC`
-    ).bind(tier, cutoff).all<{ name: string }>();
+    ).bind(
+      tier,
+      YC_SOURCE_TYPE,
+      cutoff,
+      YC_SOURCE_TYPE,
+      ycPaused ? 1 : 0,
+      ycCutoff
+    ).all<{ name: string }>();
     const names = (rows.results ?? []).map((row) => row.name);
     if (names.length > 0) {
       overdue.push({ tier, count: names.length, names: names.slice(0, 3) });

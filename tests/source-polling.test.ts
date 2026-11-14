@@ -80,6 +80,19 @@ function addCompany(
   );
 }
 
+function recordPoll(
+  sqlite: ReturnType<typeof sqliteD1>["sqlite"],
+  companyId: string,
+  startedAt: string,
+  error: string | null
+) {
+  sqlite.query(
+    `INSERT INTO source_polls (
+       id, company_id, poll_tier, mode, status, started_at, finished_at, error
+     ) VALUES (?, ?, 2, 'queue', ?, ?, ?, ?)`
+  ).run(crypto.randomUUID(), companyId, error ? "error" : "ok", startedAt, startedAt, error);
+}
+
 function fakeQueue() {
   const sent: SourcePollMessage[] = [];
   let failNext = false;
@@ -141,6 +154,40 @@ describe("claimDueSources", () => {
     const claimed = await claimDueSources(db, 2, NOW);
 
     expect(claimed.map((row) => row.id)).toEqual(["hour"]);
+  });
+
+  it("polls YC every 6 hours, apart from the rest of tier 2", async () => {
+    const { sqlite, db } = pollingDb();
+    addCompany(sqlite, "yc-hour", { tier: 2, sourceType: "yc", lastPolledAt: minutesAgo(60) });
+    addCompany(sqlite, "yc-due", { tier: 2, sourceType: "yc", lastPolledAt: minutesAgo(6 * 60) });
+    addCompany(sqlite, "yc-new", { tier: 2, sourceType: "yc", lastPolledAt: null });
+    addCompany(sqlite, "ashby-hour", { tier: 2, sourceType: "ashby", lastPolledAt: minutesAgo(60) });
+
+    const claimed = await claimDueSources(db, 2, NOW);
+
+    expect(claimed.map((row) => row.id).sort()).toEqual(["ashby-hour", "yc-due", "yc-new"]);
+  });
+
+  it("holds every YC source for an hour after YC answers 429", async () => {
+    const { sqlite, db } = pollingDb();
+    addCompany(sqlite, "limited", { tier: 2, sourceType: "yc", lastPolledAt: minutesAgo(20) });
+    addCompany(sqlite, "yc", { tier: 2, sourceType: "yc", lastPolledAt: minutesAgo(7 * 60) });
+    addCompany(sqlite, "ashby", { tier: 2, sourceType: "ashby", lastPolledAt: minutesAgo(60) });
+    recordPoll(sqlite, "limited", minutesAgo(20), "YC jobs page 429");
+
+    expect((await claimDueSources(db, 2, NOW)).map((row) => row.id)).toEqual(["ashby"]);
+
+    const later = new Date(NOW.getTime() + 41 * 60 * 1000);
+    // The pause ends an hour after the 429; the Ashby claim has expired by then too.
+    expect((await claimDueSources(db, 2, later)).map((row) => row.id).sort()).toEqual(["ashby", "yc"]);
+  });
+
+  it("does not pause YC for other errors", async () => {
+    const { sqlite, db } = pollingDb();
+    addCompany(sqlite, "yc", { tier: 2, sourceType: "yc", lastPolledAt: minutesAgo(7 * 60) });
+    recordPoll(sqlite, "yc", minutesAgo(5), "YC jobs page 404");
+
+    expect((await claimDueSources(db, 2, NOW)).map((row) => row.id)).toEqual(["yc"]);
   });
 
   it("never hands the same source to two overlapping ticks", async () => {
@@ -418,6 +465,32 @@ describe("pollQueuedSource", () => {
 
     expect(result).toEqual({ status: "skipped", reason: "stale_claim" });
     expect(polled).toBe(false);
+  });
+
+  it("drops a queued YC page while YC is rate limiting, keeping it due", async () => {
+    const { sqlite, db } = pollingDb();
+    addCompany(sqlite, "yc", {
+      tier: 2,
+      sourceType: "yc",
+      lastPolledAt: minutesAgo(7 * 60),
+      claimedAt: NOW.toISOString(),
+    });
+    addCompany(sqlite, "other", { tier: 2, sourceType: "yc", lastPolledAt: minutesAgo(1) });
+    recordPoll(sqlite, "other", minutesAgo(1), "YC jobs page 429");
+
+    const result = await pollQueuedSource(
+      { DB: db, QUEUE_POLLING_TIERS: "2" } as Env,
+      { companyId: "yc", tier: 2, claimedAt: NOW.toISOString() },
+      dependencies(async () => {
+        throw new Error("should not poll");
+      }),
+      clock()
+    );
+
+    expect(result).toEqual({ status: "skipped", reason: "rate_limited" });
+    expect(sqlite.query(
+      "SELECT poll_claimed_at, last_polled_at FROM companies WHERE id = 'yc'"
+    ).get()).toEqual({ poll_claimed_at: null, last_polled_at: minutesAgo(7 * 60) });
   });
 
   it("releases the claim without polling once the tier moves back to cron", async () => {

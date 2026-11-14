@@ -7,6 +7,9 @@ import {
   queuedPollingTiers,
   SOURCE_POLL_INTERVAL_MS,
   sourcePollRecord,
+  YC_POLL_INTERVAL_MS,
+  YC_SOURCE_TYPE,
+  ycPausedUntil,
   type PollTier,
 } from "./poll-schedule";
 import type { CompanyRow, Env } from "./types";
@@ -93,6 +96,9 @@ export async function claimDueSources(
   // Quarantined sources keep the existing one-retry-a-day backoff.
   const quarantineRetryBefore = new Date(now.getTime() - QUARANTINE_RETRY_MS).toISOString();
   const claimExpiredBefore = new Date(now.getTime() - SOURCE_POLL_CLAIM_TTL_MS).toISOString();
+  // YC keeps its own slower cadence and sits out a rate-limit pause.
+  const ycDueBefore = new Date(now.getTime() - YC_POLL_INTERVAL_MS + DISPATCH_TICK_MS).toISOString();
+  const ycPaused = (await ycPausedUntil(db, now)) !== null;
 
   const result = await db.prepare(
     `UPDATE companies
@@ -109,6 +115,10 @@ export async function claimDueSources(
            OR (quarantined_at IS NULL AND last_polled_at < ?)
            OR (quarantined_at IS NOT NULL AND last_polled_at < ?)
          )
+         AND (
+           COALESCE(source_type, ats_type) != ?
+           OR (? = 0 AND (last_polled_at IS NULL OR last_polled_at < ?))
+         )
        ORDER BY datetime(COALESCE(last_polled_at, added_at)) ASC, added_at ASC
        LIMIT ?
      )
@@ -119,6 +129,9 @@ export async function claimDueSources(
     claimExpiredBefore,
     dueBefore,
     quarantineRetryBefore,
+    YC_SOURCE_TYPE,
+    ycPaused ? 1 : 0,
+    ycDueBefore,
     tickLimit
   ).all<{ id: string; poll_claimed_at: string }>();
   return result.results ?? [];
@@ -195,7 +208,7 @@ const sourcePollDependencies: SourcePollDependencies = {
 
 export type SourcePollResult =
   | { status: "polled"; newJobs: number; error: string | null }
-  | { status: "skipped"; reason: "missing" | "stale_claim" | "not_queued" };
+  | { status: "skipped"; reason: "missing" | "stale_claim" | "not_queued" | "rate_limited" };
 
 /**
  * Polls one claimed source. Adapter failures are recorded through the shared
@@ -227,6 +240,19 @@ export async function pollQueuedSource(
       "UPDATE companies SET poll_claimed_at = NULL WHERE id = ? AND poll_claimed_at = ?"
     ).bind(company.id, message.claimedAt).run();
     return { status: "skipped", reason: "not_queued" };
+  }
+
+  // A YC page queued before a rate-limit pause began waits for the pause to
+  // end instead of adding to it. last_polled_at stays put, so it is due again
+  // as soon as the pause lifts.
+  if (
+    (company.source_type ?? company.ats_type) === YC_SOURCE_TYPE
+    && (await ycPausedUntil(db, now())) !== null
+  ) {
+    await db.prepare(
+      "UPDATE companies SET poll_claimed_at = NULL WHERE id = ? AND poll_claimed_at = ?"
+    ).bind(company.id, message.claimedAt).run();
+    return { status: "skipped", reason: "rate_limited" };
   }
 
   const startedAt = now().toISOString();

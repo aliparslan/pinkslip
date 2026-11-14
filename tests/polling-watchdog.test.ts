@@ -28,7 +28,7 @@ function watchdogDb() {
     );
     CREATE TABLE notification_match_backlog (job_id TEXT PRIMARY KEY, queued_at TEXT NOT NULL);
     CREATE TABLE preferences (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-    CREATE TABLE source_polls (id TEXT PRIMARY KEY);
+    CREATE TABLE source_polls (id TEXT PRIMARY KEY, started_at TEXT, error TEXT);
   `);
   return harness;
 }
@@ -79,6 +79,22 @@ describe("runPollingWatchdog", () => {
       body: "Tier 1: 2 overdue (Ramp, Stripe)",
       data: { url: "/admin/runs" },
     }]);
+  });
+
+  it("gives YC its 6-hour cadence and lets it sit out a rate-limit pause", async () => {
+    const { sqlite, db } = watchdogDb();
+    sqlite.run(`INSERT INTO companies (id, name, source_type, poll_tier, last_polled_at) VALUES
+      ('a', 'On Cadence', 'yc', 2, '${minutesAgo(6 * 60)}'),
+      ('b', 'Behind', 'yc', 2, '${minutesAgo(13 * 60)}')`);
+    const env = { DB: db, QUEUE_POLLING_TIERS: "2" } as Env;
+    const { alert } = recorder();
+
+    expect((await runPollingWatchdog(env, NOW, alert))?.overdue).toEqual([
+      { tier: 2, count: 1, names: ["Behind"] },
+    ]);
+
+    sqlite.run(`INSERT INTO source_polls VALUES ('p', '${minutesAgo(10)}', 'YC jobs page 429')`);
+    expect((await runPollingWatchdog(env, NOW, alert))?.overdue).toEqual([]);
   });
 
   it("flags new jobs that have waited too long to notify", async () => {

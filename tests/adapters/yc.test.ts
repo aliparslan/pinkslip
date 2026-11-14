@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { normalizeYcSource, YcAdapter } from "@worker/adapters/yc";
+import { YC_RATE_LIMITED_ERROR } from "@worker/poll-schedule";
 
 function htmlEntities(value: string) {
   return value
@@ -64,6 +65,12 @@ describe("YcAdapter", () => {
       description: null,
       salary: "$150K - $200K",
     }]);
+  });
+
+  it("reports a rate limit with the error the YC pause looks for", async () => {
+    globalThis.fetch = mock().mockResolvedValue(new Response("", { status: 429 })) as unknown as typeof fetch;
+
+    await expect(new YcAdapter().fetchJobs("acme")).rejects.toThrow(new Error(YC_RATE_LIMITED_ERROR));
   });
 
   it("retrieves the structured detail description", async () => {
